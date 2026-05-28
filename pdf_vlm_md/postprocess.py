@@ -165,6 +165,32 @@ def demote_headings_in_html_table_cells(text: str) -> str:
     return '\n'.join(result)
 
 
+_NUMBERED_CONTENT_RE = re.compile(r'^\d')
+
+
+def demote_semicolon_sentence_headings(text: str) -> str:
+    """Demote numbered heading lines whose content ends in '；' to plain text.
+
+    Targets checklist/evaluation items VLM directly tagged as headings.
+    '；'-ending is a strong signal for list items in Chinese evaluation docs.
+    '。'-ending is left untouched to preserve 工艺规程 process-step headings.
+    """
+    lines = text.split('\n')
+    result: list[str] = []
+    in_code = False
+    for line in lines:
+        if line.startswith('```'):
+            in_code = not in_code
+        if not in_code:
+            m = HEADING_LINE_RE.match(line)
+            if m:
+                content = m.group(2).strip()
+                if content.endswith('；') and _NUMBERED_CONTENT_RE.match(content):
+                    line = content
+        result.append(line)
+    return '\n'.join(result)
+
+
 def fix_heading_level_inversions(text: str) -> str:
     """Fix numbered child headings that are at same/shallower level than their parent.
 
@@ -967,7 +993,8 @@ def postprocess_markdown(
     text = promote_table_title_headings(text)
     text = demote_figure_formula_headings(text)
     text = validate_and_annotate_mermaid(text)
-    text = demote_headings_in_html_table_cells(text)   # NEW
+    text = demote_headings_in_html_table_cells(text)
+    text = demote_semicolon_sentence_headings(text)    # NEW
     # 全局 level 归一化（最终保险层）：以 Phase 1 输出为锚点，修正 Phase 2 的随机偏差
     p1_canonical: dict[str, int] = {}
     for ps in document_context.page_structures.values():

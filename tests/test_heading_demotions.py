@@ -34,3 +34,37 @@ def test_heading_restored_after_td_close():
     out = demote_headings_in_html_table_cells(inp)
     assert "## 清单项" not in out
     assert "## 正常章节标题" in out
+
+
+from pdf_vlm_md.postprocess import demote_semicolon_sentence_headings
+
+
+def test_demotes_numbered_heading_ending_in_semicolon():
+    inp = "### 2、温度加速常数 θ 为 10（元器件寿命 10°C法则）；"
+    out = demote_semicolon_sentence_headings(inp)
+    assert not out.strip().startswith("#")
+    assert "2、温度加速常数" in out
+
+
+def test_demotes_dotted_heading_ending_in_semicolon():
+    inp = "#### 1.1 高可靠等级产品的瓷浆分散；"
+    out = demote_semicolon_sentence_headings(inp)
+    assert not out.strip().startswith("#")
+
+
+def test_preserves_heading_not_ending_in_semicolon():
+    inp = "### 1.1 产品信息来源"
+    out = demote_semicolon_sentence_headings(inp)
+    assert out == inp
+
+
+def test_preserves_process_step_ending_in_period():
+    inp = "## 1、内电极储存：内电极平时需储存在冰箱内，冰箱允许温度范围 5-15℃。"
+    out = demote_semicolon_sentence_headings(inp)
+    assert out == inp
+
+
+def test_demote_semicolon_preserves_in_code_block():
+    inp = "```\n### 3、某清单项；\n```"
+    out = demote_semicolon_sentence_headings(inp)
+    assert out == inp
