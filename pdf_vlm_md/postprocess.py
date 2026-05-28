@@ -80,6 +80,10 @@ _MD_SEP_ROW_RE = re.compile(r'^\|(?:[ :]*-{3,}[ :]*\|)+\s*$')
 _ARABIC_SECTION_PREFIX_RE = re.compile(r'^(\d+(?:\.\d+)*)(?:[、.．]|\s)')
 _CHINESE_MAJOR_HEADING_RE = re.compile(r'^[一二三四五六七八九十百千]+[、]')
 _SENTENCE_PUNCT_RE = re.compile(r'[；。！？]')
+_TOC_ENTRY_HEADING_RE = re.compile(
+    r'^(#{2,3})\s+(.+?)\s*[\.…·]{4,}\s*\d{1,3}\s*$'
+)
+_TOC_RUN_MIN = 3
 
 
 def repair_unclosed_html_tables(text: str) -> str:
@@ -190,6 +194,58 @@ def demote_semicolon_sentence_headings(text: str) -> str:
             content = m.group(2).strip()
             if content.endswith('；') and _NUMBERED_CONTENT_RE.match(content):
                 line = content
+        result.append(line)
+    return '\n'.join(result)
+
+
+def demote_toc_style_headings(text: str) -> str:
+    """Convert runs of dotted TOC-entry headings (## chapter ....N) to list items.
+
+    Runs of _TOC_RUN_MIN or more consecutive matching lines are converted; shorter
+    runs are left untouched to avoid false positives on isolated dotted headings.
+    """
+    lines = text.split('\n')
+    in_code = False
+
+    # Pass 1: find indices of TOC-style heading lines (outside code blocks)
+    toc_indices: list[int] = []
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith('```'):
+            in_code = not in_code
+        if not in_code and _TOC_ENTRY_HEADING_RE.match(line):
+            toc_indices.append(i)
+
+    if not toc_indices:
+        return text
+
+    # Pass 2: find runs of consecutive indices
+    to_demote: set[int] = set()
+    run_start = 0
+    while run_start < len(toc_indices):
+        run_end = run_start
+        while (
+            run_end + 1 < len(toc_indices)
+            and toc_indices[run_end + 1] == toc_indices[run_end] + 1
+        ):
+            run_end += 1
+        run_len = run_end - run_start + 1
+        if run_len >= _TOC_RUN_MIN:
+            for idx in range(run_start, run_end + 1):
+                to_demote.add(toc_indices[idx])
+        run_start = run_end + 1
+
+    if not to_demote:
+        return text
+
+    # Pass 3: rewrite
+    result: list[str] = []
+    for i, line in enumerate(lines):
+        if i in to_demote:
+            m = _TOC_ENTRY_HEADING_RE.match(line)
+            if m:
+                result.append('- ' + m.group(2).strip())
+                continue
         result.append(line)
     return '\n'.join(result)
 
@@ -998,6 +1054,7 @@ def postprocess_markdown(
     text = validate_and_annotate_mermaid(text)
     text = demote_headings_in_html_table_cells(text)
     text = demote_semicolon_sentence_headings(text)
+    text = demote_toc_style_headings(text)
     # 全局 level 归一化（最终保险层）：以 Phase 1 输出为锚点，修正 Phase 2 的随机偏差
     p1_canonical: dict[str, int] = {}
     for ps in document_context.page_structures.values():

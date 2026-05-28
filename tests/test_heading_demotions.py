@@ -68,3 +68,46 @@ def test_demote_semicolon_preserves_in_code_block():
     inp = "```\n### 3、某清单项；\n```"
     out = demote_semicolon_sentence_headings(inp)
     assert out == inp
+
+
+from pdf_vlm_md.postprocess import demote_toc_style_headings
+
+
+def test_demotes_run_of_dotted_toc_entries():
+    inp = (
+        "## 一、 目的 .............................................1\n"
+        "## 二、 产品适用范围 ......................................1\n"
+        "## 三、 适用法律法规及标准 ................................1\n"
+        "## 四、 职责 ..............................................2\n"
+    )
+    out = demote_toc_style_headings(inp)
+    assert "## 一、" not in out
+    assert "## 二、" not in out
+    assert "## 三、" not in out
+    assert "## 四、" not in out
+    # Should be converted to list items
+    assert "- 一、 目的" in out
+
+
+def test_preserves_short_run_below_threshold():
+    # Only 2 consecutive dotted entries — below threshold of 3, keep as-is
+    inp = (
+        "## 一、 目的 ............1\n"
+        "## 二、 产品适用范围 ...1\n"
+        "## 正文章节\n"
+    )
+    out = demote_toc_style_headings(inp)
+    assert "## 一、" in out
+    assert "## 二、" in out
+
+
+def test_preserves_normal_h2_not_dotted():
+    inp = "## 项目输入评审记录\n## 项目立项申请书\n## CTK41B型多层片式瓷介固定电容器\n"
+    out = demote_toc_style_headings(inp)
+    assert out == inp
+
+
+def test_preserves_in_code_block():
+    inp = "```\n## 一、目的 .........1\n## 二、范围 .........1\n## 三、内容 .........1\n```"
+    out = demote_toc_style_headings(inp)
+    assert out == inp
