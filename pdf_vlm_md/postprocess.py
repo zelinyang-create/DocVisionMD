@@ -179,14 +179,17 @@ def demote_semicolon_sentence_headings(text: str) -> str:
     result: list[str] = []
     in_code = False
     for line in lines:
-        if line.startswith('```'):
+        stripped = line.strip()
+        if stripped.startswith('```'):
             in_code = not in_code
-        if not in_code:
-            m = HEADING_LINE_RE.match(line)
-            if m:
-                content = m.group(2).strip()
-                if content.endswith('；') and _NUMBERED_CONTENT_RE.match(content):
-                    line = content
+        if in_code:
+            result.append(line)
+            continue
+        m = HEADING_LINE_RE.match(line)
+        if m:
+            content = m.group(2).strip()
+            if content.endswith('；') and _NUMBERED_CONTENT_RE.match(content):
+                line = content
         result.append(line)
     return '\n'.join(result)
 
@@ -994,7 +997,7 @@ def postprocess_markdown(
     text = demote_figure_formula_headings(text)
     text = validate_and_annotate_mermaid(text)
     text = demote_headings_in_html_table_cells(text)
-    text = demote_semicolon_sentence_headings(text)    # NEW
+    text = demote_semicolon_sentence_headings(text)
     # 全局 level 归一化（最终保险层）：以 Phase 1 输出为锚点，修正 Phase 2 的随机偏差
     p1_canonical: dict[str, int] = {}
     for ps in document_context.page_structures.values():
