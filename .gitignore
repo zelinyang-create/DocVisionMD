@@ -1,0 +1,154 @@
+# =========================================================
+# Project: pdf_vlm_md_vlm_phase1
+# Purpose: keep source code/tests, ignore secrets, local caches,
+#          generated PDF/VLM outputs, debug render images, and large docs.
+# =========================================================
+
+# -------------------------
+# Python cache / bytecode
+# -------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# -------------------------
+# Virtual environments
+# -------------------------
+.venv/
+venv/
+env/
+ENV/
+.envrc
+
+# -------------------------
+# Environment variables / secrets
+# Keep .env.example, ignore real local env files.
+# -------------------------
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+secrets.*
+credentials.*
+
+# -------------------------
+# Claude / AI tool local settings
+# Project-level sharable configs can be added later if needed,
+# but local permission/session settings should not be committed.
+# -------------------------
+.claude/settings.local.json
+**/.claude/settings.local.json
+.cursor/
+
+# -------------------------
+# Test / coverage / build artifacts
+# -------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+*.egg-info/
+dist/
+build/
+site/
+
+# -------------------------
+# Logs / temp files
+# -------------------------
+logs/
+log/
+*.log
+tmp/
+temp/
+.cache/
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# -------------------------
+# Generated outputs for PDF/VLM/Markdown conversion
+# -------------------------
+output/
+outputs/
+result/
+results/
+converted/
+export/
+exports/
+_debug/
+**/_debug/
+pages_img/
+**/pages_img/
+*.ocr.json
+*.layout.json
+*.blocks.json
+*.trace.json
+*.debug.json
+*.debug.md
+*.debug.html
+
+# -------------------------
+# Internal development docs (design specs, implementation plans)
+# Not intended for public distribution.
+# -------------------------
+docs/
+
+# -------------------------
+# Local document test folder in this project
+# Contains large/sensitive PDFs, generated MD, and page render images.
+# Do not upload it to GitHub unless you intentionally sanitize it.
+# -------------------------
+文档测试/
+**/文档测试/
+
+# -------------------------
+# Large or sensitive input documents
+# If you need a tiny public fixture, put it under tests/fixtures/
+# and force-add it with: git add -f tests/fixtures/<file>
+# -------------------------
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+*.zip
+*.7z
+*.rar
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.tif
+*.tiff
+
+# Allow explicitly curated public fixtures if you create this folder.
+!tests/fixtures/
+!tests/fixtures/**
+
+# -------------------------
+# IDE / OS files
+# -------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# -------------------------
+# Misc local markers
+# -------------------------
+correct
