@@ -27,3 +27,10 @@ def test_td_on_same_line_as_content():
     inp = "<td>## 3、清单项；</td>"
     out = demote_headings_in_html_table_cells(inp)
     assert "## 3、" not in out
+
+
+def test_heading_restored_after_td_close():
+    inp = "<td>\n## 清单项；<br>\n</td>\n## 正常章节标题"
+    out = demote_headings_in_html_table_cells(inp)
+    assert "## 清单项" not in out
+    assert "## 正常章节标题" in out

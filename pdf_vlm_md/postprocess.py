@@ -145,7 +145,6 @@ def demote_headings_in_html_table_cells(text: str) -> str:
         if in_code:
             result.append(line)
             continue
-        # Reset in_td at page boundaries to prevent cross-page pollution
         if PAGE_MARKER_RE.match(stripped):
             in_td = False
             result.append(line)
@@ -159,7 +158,6 @@ def demote_headings_in_html_table_cells(text: str) -> str:
             if m:
                 line = m.group(2)  # strip the '#...# ' prefix, keep content
             else:
-                # handle inline heading markers within the same <td>...</td> line
                 line = re.sub(r'(?<=>)(#{2,6})\s+', '', line)
         if td_close:
             in_td = False
