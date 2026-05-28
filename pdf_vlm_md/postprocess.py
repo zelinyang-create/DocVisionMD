@@ -77,6 +77,9 @@ _HTML_TABLE_CLOSE_RE = re.compile(r'</table>', re.IGNORECASE)
 _HTML_TBODY_OPEN_RE = re.compile(r'<tbody>', re.IGNORECASE)
 _HTML_TBODY_CLOSE_RE = re.compile(r'</tbody>', re.IGNORECASE)
 _MD_SEP_ROW_RE = re.compile(r'^\|(?:[ :]*-{3,}[ :]*\|)+\s*$')
+_ARABIC_SECTION_PREFIX_RE = re.compile(r'^(\d+(?:\.\d+)*)(?:[、.．]|\s)')
+_CHINESE_MAJOR_HEADING_RE = re.compile(r'^[一二三四五六七八九十百千]+[、]')
+_SENTENCE_PUNCT_RE = re.compile(r'[；。！？]')
 
 
 def repair_unclosed_html_tables(text: str) -> str:
@@ -126,6 +129,115 @@ def fix_markdown_table_header(text: str) -> str:
                 empty_header = '| ' + ' | '.join([' '] * col_count) + ' |'
                 result.append(empty_header)
         result.append(line)
+    return '\n'.join(result)
+
+
+def demote_headings_in_html_table_cells(text: str) -> str:
+    """Strip markdown heading markers from lines that appear inside HTML <td> blocks."""
+    lines = text.split('\n')
+    result: list[str] = []
+    in_code = False
+    in_td = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('```'):
+            in_code = not in_code
+        if in_code:
+            result.append(line)
+            continue
+        # Reset in_td at page boundaries to prevent cross-page pollution
+        if PAGE_MARKER_RE.match(stripped):
+            in_td = False
+            result.append(line)
+            continue
+        td_open = bool(re.search(r'<td\b', stripped, re.IGNORECASE))
+        td_close = bool(re.search(r'</td>', stripped, re.IGNORECASE))
+        if td_open:
+            in_td = True
+        if in_td:
+            m = HEADING_LINE_RE.match(line)
+            if m:
+                line = m.group(2)  # strip the '#...# ' prefix, keep content
+            else:
+                # handle inline heading markers within the same <td>...</td> line
+                line = re.sub(r'(?<=>)(#{2,6})\s+', '', line)
+        if td_close:
+            in_td = False
+        result.append(line)
+    return '\n'.join(result)
+
+
+def fix_heading_level_inversions(text: str) -> str:
+    """Fix numbered child headings that are at same/shallower level than their parent.
+
+    Two cases:
+    - Arabic depth-1 (1.) directly under a Chinese major heading (一、) at the same level.
+    - Arabic child (1.1) with level <= its parent Arabic heading (1.) level.
+    """
+    lines = text.split('\n')
+    result: list[str] = []
+    in_code = False
+    arabic_depth_level: dict[int, int] = {}
+    chinese_major_level: int | None = None
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('```'):
+            in_code = not in_code
+            result.append(line)
+            continue
+        if in_code:
+            result.append(line)
+            continue
+
+        m = HEADING_LINE_RE.match(line)
+        if not m:
+            result.append(line)
+            continue
+
+        level = len(m.group(1))
+        if level == 1:
+            result.append(line)
+            continue
+
+        content = m.group(2).strip()
+
+        if _CHINESE_MAJOR_HEADING_RE.match(content):
+            chinese_major_level = level
+            arabic_depth_level.clear()
+            result.append(line)
+            continue
+
+        dm = _ARABIC_SECTION_PREFIX_RE.match(content)
+        if dm:
+            num_str = dm.group(1)
+            depth = num_str.count('.') + 1
+
+            # Arabic depth-1 directly under Chinese major at same/shallower level
+            if depth == 1 and chinese_major_level is not None and level <= chinese_major_level:
+                level = min(chinese_major_level + 1, 6)
+                line = '#' * level + ' ' + content
+
+            # Arabic child whose parent is at same/deeper level
+            parent_depth = depth - 1
+            if parent_depth > 0 and parent_depth in arabic_depth_level:
+                parent_level = arabic_depth_level[parent_depth]
+                if level <= parent_level:
+                    level = min(parent_level + 1, 6)
+                    line = '#' * level + ' ' + content
+
+            arabic_depth_level[depth] = level
+            for d in list(arabic_depth_level):
+                if d > depth:
+                    del arabic_depth_level[d]
+        else:
+            # Non-numbered, non-Chinese-major heading at H2/H3 resets context
+            if level <= 3:
+                arabic_depth_level.clear()
+                chinese_major_level = None
+
+        result.append(line)
+
     return '\n'.join(result)
 
 
@@ -365,6 +477,7 @@ def promote_plain_numbered_headings(text: str) -> str:
             or stripped.startswith('|')
             or stripped.startswith(('- ', '* ', '+ ', '> '))
             or len(stripped) > MAX_PLAIN_HEADING_CHARS
+            or (len(stripped) > 40 and _SENTENCE_PUNCT_RE.search(stripped))
         ):
             result.append(line)
             continue
@@ -435,9 +548,11 @@ def fix_numbered_heading_levels(text: str) -> str:
         if not in_code:
             m = NUMBERED_HEADING_RE.match(line)
             if m:
-                correct = level_for_number(m.group(2))
                 content = line[len(m.group(1)):].lstrip()
-                line = '#' * correct + ' ' + content
+                # Skip re-leveling if content looks like a sentence (evaluation items etc.)
+                if not _SENTENCE_PUNCT_RE.search(content):
+                    correct = level_for_number(m.group(2))
+                    line = '#' * correct + ' ' + content
         result.append(line)
     return '\n'.join(result)
 
@@ -689,7 +804,6 @@ def validate_and_annotate_mermaid(text: str) -> str:
 
 PAGE_NUMBER_LINE_RE = re.compile(r'^第\s*\d+\s*页(?:\s*共\s*\d+\s*页)?$')
 HTML_DIV_LINE_RE = re.compile(r'^<div\b', re.IGNORECASE)
-COVER_DOC_HEADING_RE = re.compile(r'^##\s+工艺文件\s*$')
 
 
 def _plain_text_from_html_div(line: str) -> str:
@@ -728,9 +842,6 @@ def strip_output_noise(text: str) -> str:
                     part = part.strip()
                     if part and not PAGE_NUMBER_LINE_RE.match(part):
                         result.append(part)
-            continue
-        if COVER_DOC_HEADING_RE.match(line):
-            result.append('**工艺文件**')
             continue
         result.append(line)
     return '\n'.join(result)
@@ -858,6 +969,7 @@ def postprocess_markdown(
     text = promote_table_title_headings(text)
     text = demote_figure_formula_headings(text)
     text = validate_and_annotate_mermaid(text)
+    text = demote_headings_in_html_table_cells(text)   # NEW
     # 全局 level 归一化（最终保险层）：以 Phase 1 输出为锚点，修正 Phase 2 的随机偏差
     p1_canonical: dict[str, int] = {}
     for ps in document_context.page_structures.values():
@@ -868,6 +980,7 @@ def postprocess_markdown(
                 if h.level < p1_canonical[key]:
                     p1_canonical[key] = h.level
     text = normalize_markdown_heading_levels(text, phase1_canonical=p1_canonical)
+    text = fix_heading_level_inversions(text)
     text = strip_output_noise(text)
     text = repair_unclosed_html_tables(text)
     text = fix_markdown_table_header(text)
