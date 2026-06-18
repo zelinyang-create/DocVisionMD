@@ -3,7 +3,7 @@ from pdf_vlm_md.convert_page import (
     visual_descriptions_incomplete,
     figure_captions_missing_descriptions,
     process_table_diagram_issues,
-    _is_process_regulation_page,
+    _has_process_regulation_heading,
     _page_has_figure_content,
     build_page_context,
 )
@@ -73,9 +73,9 @@ def test_visual_checks_figure_and_process_independently():
     assert 'missing_figure_caption_description' in issues
 
 
-def test_is_process_regulation_page_from_heading():
+def test_has_process_regulation_heading_from_heading():
     known = [Heading(text='G01 配料工序工艺规程（关键工序）', level=3, type='body_heading')]
-    assert _is_process_regulation_page(known, '')
+    assert _has_process_regulation_heading(known, '')
 
 
 def test_page_has_figure_content_from_region():

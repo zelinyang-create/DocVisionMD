@@ -14,6 +14,7 @@ from .structure_enrich import (
     match_process_section_for_page,
     merge_headings_unique,
     align_process_headings_to_page,
+    FLOWCHART_REQUIRED_SECTIONS,
 )
 from .heading_rules import (
     is_figure_or_formula_title,
@@ -44,7 +45,7 @@ FIGURE_CAPTION_LINE_RE = re.compile(
 FIGURE_CAPTION_HINT_RE = re.compile(r'(?<![流程])图\s*\d[\d\-－–]*', re.UNICODE)
 
 
-def _is_process_regulation_page(known: list[Heading], page_raw_text: str) -> bool:
+def _has_process_regulation_heading(known: list[Heading], page_raw_text: str) -> bool:
     if PROCESS_SECTION_LINE_RE.search(page_raw_text[:800]):
         return True
     return any(
@@ -213,8 +214,16 @@ def build_page_context(
     )
     known = relevel_table_headings(known, section_level)
     is_fc = page_has_flowchart(ps, page_raw_text) and not ps.is_toc_page
-    is_process_reg = _is_process_regulation_page(known, page_raw_text) and not ps.is_toc_page
+    is_process_reg = _has_process_regulation_heading(known, page_raw_text) and not ps.is_toc_page
     has_figures = _page_has_figure_content(ps, page_raw_text) and not ps.is_toc_page
+    if is_fc:
+        fc_level = min(section_level + 1, 6)
+        existing_texts = {h.text for h in known}
+        for sec_name in FLOWCHART_REQUIRED_SECTIONS:
+            if sec_name not in existing_texts:
+                known.append(
+                    Heading(text=sec_name, level=fc_level, type='flowchart_section')
+                )
     return PageContext(
         file_title=document_context.file_title,
         page_no=page_no,

@@ -22,7 +22,7 @@ from .heading_rules import (
     is_plain_table_title,
     is_figure_or_formula_title,
 )
-from .structure_enrich import FLOWCHART_REQUIRED_SECTIONS, is_stack_heading
+from .structure_enrich import FLOWCHART_REQUIRED_SECTIONS, STACK_EXCLUDED_HEADING_RE, is_stack_heading
 
 _FLOWCHART_SECTION_ALT = '|'.join(re.escape(s) for s in FLOWCHART_REQUIRED_SECTIONS)
 FLOWCHART_SECTION_HEADING_RE = re.compile(rf'^####\s+({_FLOWCHART_SECTION_ALT})\s*$')
@@ -78,7 +78,6 @@ _HTML_TBODY_OPEN_RE = re.compile(r'<tbody>', re.IGNORECASE)
 _HTML_TBODY_CLOSE_RE = re.compile(r'</tbody>', re.IGNORECASE)
 _MD_SEP_ROW_RE = re.compile(r'^\|(?:[ :]*-{3,}[ :]*\|)+\s*$')
 _ARABIC_SECTION_PREFIX_RE = re.compile(r'^(\d+(?:\.\d+)*)(?:[、.．]|\s)')
-_CHINESE_MAJOR_HEADING_RE = re.compile(r'^[一二三四五六七八九十百千]+[、]')
 _SENTENCE_PUNCT_RE = re.compile(r'[；。！？]')
 _TOC_ENTRY_HEADING_RE = re.compile(
     r'^(#{2,3})\s+(.+?)\s*[\.…·]{4,}\s*\d{1,3}\s*$'
@@ -285,7 +284,7 @@ def fix_heading_level_inversions(text: str) -> str:
 
         content = m.group(2).strip()
 
-        if _CHINESE_MAJOR_HEADING_RE.match(content):
+        if HEADING_CN_MAJOR_RE.match(content):
             chinese_major_level = level
             arabic_depth_level.clear()
             result.append(line)
@@ -429,14 +428,15 @@ def fix_flowchart_page_titles(text: str) -> str:
             continue
 
         stripped = line.strip()
+        _next = _skip_blank_lines(lines, i + 1)
         if (
-            i + 1 < len(lines)
-            and PROCESS_REGULATION_BOLD_RE.match(stripped)
-            and FLOWCHART_LABEL_BOLD_RE.match(lines[_skip_blank_lines(lines, i + 1)].strip())
+            PROCESS_REGULATION_BOLD_RE.match(stripped)
+            and _next < len(lines)
+            and FLOWCHART_LABEL_BOLD_RE.match(lines[_next].strip())
         ):
             reg_title = PROCESS_REGULATION_BOLD_RE.match(stripped).group(1).strip()
             result.append(f'### {reg_title} 流程图')
-            i = _skip_blank_lines(lines, i + 1) + 1
+            i = _next + 1
             continue
 
         result.append(line)
@@ -828,11 +828,6 @@ def promote_table_title_headings(text: str) -> str:
     return '\n'.join(result)
 
 
-def demote_table_figure_headings(text: str) -> str:
-    """Backward-compatible alias: only demotes figure/formula titles."""
-    return demote_figure_formula_headings(text)
-
-
 def _get_boundary_lines(page_text: str, n: int = 3) -> list[str]:
     lines = [ln for ln in page_text.splitlines() if ln.strip()]
     return lines[:n] + (lines[-n:] if len(lines) > n else [])
@@ -1027,6 +1022,373 @@ def normalize_markdown_heading_levels(
     return '\n'.join(result)
 
 
+_HEADING_LINE_FOR_CORRECTION_RE = re.compile(r'^(#{1,6})\s+(.+)$')
+_MIN_HEADING_CHARS_FOR_FUZZY = 4
+_TH_CONTENT_RE = re.compile(r'<th(?:[^>]*)>(.*?)</th>', re.DOTALL | re.IGNORECASE)
+_HTML_STRIP_TAGS_RE = re.compile(r'<[^>]+>')
+_PLAIN_TITLE_LINE_MAX_CHARS = 150
+_PLAIN_TITLE_MIN_HEADING_RATIO = 0.5
+
+
+def _extract_th_texts(block: str) -> list[str]:
+    return [
+        _HTML_STRIP_TAGS_RE.sub('', m.group(1)).strip()
+        for m in _TH_CONTENT_RE.finditer(block)
+    ]
+
+
+def _is_plain_title_candidate(line: str) -> bool:
+    s = line.strip()
+    if not s:
+        return False
+    if s[0] in ('#', '|', '<', '-', '*', '>', '`'):
+        return False
+    if re.match(r'^\d+[.、．]\s', s):
+        return False
+    if len(s) > _PLAIN_TITLE_LINE_MAX_CHARS:
+        return False
+    if _SENTENCE_PUNCT_RE.search(s):
+        return False
+    return True
+
+
+def _is_heading_present(h_key: str, existing_keys: set[str]) -> bool:
+    if h_key in existing_keys:
+        return True
+    return any(
+        (h_key in k or k in h_key)
+        for k in existing_keys
+        if len(k) >= _MIN_HEADING_CHARS_FOR_FUZZY
+    )
+
+
+def _inject_from_html_th(content: str, missing: list) -> str:
+    lines = content.split('\n')
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if not re.match(r'\s*<table\b', line, re.IGNORECASE):
+            out.append(line)
+            i += 1
+            continue
+        table_buf = [line]
+        depth = len(re.findall(r'<table\b', line, re.IGNORECASE)) - len(re.findall(r'</table>', line, re.IGNORECASE))
+        i += 1
+        while i < len(lines) and depth > 0:
+            l = lines[i]
+            depth += len(re.findall(r'<table\b', l, re.IGNORECASE)) - len(re.findall(r'</table>', l, re.IGNORECASE))
+            table_buf.append(l)
+            i += 1
+        table_block = '\n'.join(table_buf)
+        th_texts = _extract_th_texts(table_block)
+        for h in list(missing):
+            h_key = normalize_heading_text(h.text).lower()
+            for th in th_texts:
+                th_key = normalize_heading_text(th).lower()
+                if len(th_key) < _MIN_HEADING_CHARS_FOR_FUZZY:
+                    continue
+                if h_key == th_key or h_key in th_key or th_key in h_key:
+                    out.append('#' * h.level + ' ' + h.text)
+                    missing.remove(h)
+                    break
+        out.extend(table_buf)
+    return '\n'.join(out)
+
+
+def _inject_from_plain_line(content: str, missing: list) -> str:
+    if not missing:
+        return content
+    lines = content.split('\n')
+    out: list[str] = []
+    in_code = False
+    in_html = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('```'):
+            in_code = not in_code
+        if in_code:
+            out.append(line)
+            continue
+        if re.search(r'<table\b', stripped, re.IGNORECASE):
+            in_html = True
+        if '</table>' in stripped.lower():
+            in_html = False
+        if in_html:
+            out.append(line)
+            continue
+        if _is_plain_title_candidate(line):
+            line_key = normalize_heading_text(stripped).lower()
+            matched = None
+            for h in missing:
+                h_key = normalize_heading_text(h.text).lower()
+                if len(h_key) < _MIN_HEADING_CHARS_FOR_FUZZY:
+                    continue
+                ratio = len(h_key) / max(len(line_key), 1)
+                if h_key == line_key or (h_key in line_key and ratio > _PLAIN_TITLE_MIN_HEADING_RATIO):
+                    matched = h
+                    break
+            if matched:
+                out.append('#' * matched.level + ' ' + matched.text)
+                missing.remove(matched)
+                continue
+        out.append(line)
+    return '\n'.join(out)
+
+
+def inject_missing_headings_from_outline(
+    text: str,
+    document_context: DocumentContext,
+) -> str:
+    """Insert headings that Phase 2 buried in HTML <th> cells or plain text lines.
+
+    For each page block, identifies P1.5 headings absent from Markdown output and
+    finds them in HTML table headers or as standalone plain text lines.  Only
+    injects when the text is actually found in the page content to avoid false
+    positives.  flowchart_section headings and TOC pages are excluded.
+    """
+    if not document_context.page_structures:
+        return text
+
+    _page_marker_re = re.compile(r'(<!-- page: (\d+) -->)')
+    parts = _page_marker_re.split(text)
+    result: list[str] = [parts[0]]
+
+    i = 1
+    while i < len(parts) - 2:
+        full_marker = parts[i]
+        pno = int(parts[i + 1])
+        content = parts[i + 2]
+
+        ps = document_context.page_structures.get(pno)
+        if ps is None or ps.is_toc_page:
+            result.append(full_marker)
+            result.append(content)
+            i += 3
+            continue
+
+        target_headings = [
+            h for h in ps.headings
+            if h.type != 'flowchart_section'
+            and len(normalize_heading_text(h.text)) >= _MIN_HEADING_CHARS_FOR_FUZZY
+        ]
+        if not target_headings:
+            result.append(full_marker)
+            result.append(content)
+            i += 3
+            continue
+
+        existing_keys: set[str] = set()
+        in_code = False
+        for line in content.split('\n'):
+            if line.strip().startswith('```'):
+                in_code = not in_code
+            if in_code:
+                continue
+            m = _HEADING_LINE_FOR_CORRECTION_RE.match(line)
+            if m:
+                existing_keys.add(normalize_heading_text(m.group(2).strip()).lower())
+
+        missing = [
+            h for h in target_headings
+            if not _is_heading_present(normalize_heading_text(h.text).lower(), existing_keys)
+        ]
+        if not missing:
+            result.append(full_marker)
+            result.append(content)
+            i += 3
+            continue
+
+        content = _inject_from_html_th(content, missing)
+        content = _inject_from_plain_line(content, missing)
+
+        result.append(full_marker)
+        result.append(content)
+        i += 3
+
+    if i < len(parts):
+        result.extend(parts[i:])
+    return ''.join(result)
+
+
+def _find_p15_level(heading_text: str, p15_headings: list) -> int | None:
+    """Find the Phase 1.5 level for a heading text using exact then fuzzy match."""
+    norm_p2 = normalize_heading_text(heading_text).lower()
+    if len(norm_p2) < _MIN_HEADING_CHARS_FOR_FUZZY:
+        return None
+    for h in p15_headings:
+        norm_p1 = normalize_heading_text(h.text).lower()
+        if norm_p2 == norm_p1:
+            return h.level
+    for h in p15_headings:
+        norm_p1 = normalize_heading_text(h.text).lower()
+        if len(norm_p1) < _MIN_HEADING_CHARS_FOR_FUZZY:
+            continue
+        if norm_p2 in norm_p1 or norm_p1 in norm_p2:
+            return h.level
+    return None
+
+
+def correct_heading_levels_from_outline(
+    text: str,
+    document_context: DocumentContext,
+    p1_canonical: dict[str, int] | None = None,
+) -> str:
+    """Correct Phase 2 heading levels to match Phase 1.5 outline data.
+
+    Splits by <!-- page: N --> markers and for each page uses Phase 1.5
+    headings to correct levels that Phase 2 under-assigned.
+    Exclusions: H1, code blocks, STACK_EXCLUDED_HEADING_RE matches.
+
+    When p1_canonical is provided (the global-min level map already used by
+    normalize_markdown_heading_levels), that canonical level takes precedence
+    over the per-page Phase 1 level.  This prevents the two passes from
+    assigning inconsistent levels to the same heading text across pages.
+    """
+    if not document_context.page_structures:
+        return text
+
+    _page_marker_re = re.compile(r'(<!-- page: (\d+) -->)')
+    parts = _page_marker_re.split(text)
+    result: list[str] = [parts[0]]
+
+    i = 1
+    while i < len(parts) - 2:
+        full_marker = parts[i]
+        pno = int(parts[i + 1])
+        content = parts[i + 2]
+
+        ps = document_context.page_structures.get(pno)
+        if ps is None:
+            result.append(full_marker)
+            result.append(content)
+            i += 3
+            continue
+
+        p15_headings = ps.headings + ps.appendix_headings
+        if not p15_headings:
+            result.append(full_marker)
+            result.append(content)
+            i += 3
+            continue
+
+        lines = content.split('\n')
+        corrected: list[str] = []
+        in_code = False
+        for line in lines:
+            if line.strip().startswith('```'):
+                in_code = not in_code
+                corrected.append(line)
+                continue
+            if in_code:
+                corrected.append(line)
+                continue
+            m = _HEADING_LINE_FOR_CORRECTION_RE.match(line)
+            if not m:
+                corrected.append(line)
+                continue
+            level = len(m.group(1))
+            heading_text = m.group(2).strip()
+            if level == 1 or STACK_EXCLUDED_HEADING_RE.match(heading_text):
+                corrected.append(line)
+                continue
+            p15_level = _find_p15_level(heading_text, p15_headings)
+            if p15_level is not None:
+                # When a global canonical level exists, use it so that this pass
+                # and normalize_markdown_heading_levels agree on the same level
+                # for headings that appear on multiple pages.
+                key = normalize_heading_text(heading_text)
+                if p1_canonical and key in p1_canonical:
+                    p15_level = p1_canonical[key]
+                if p15_level != level:
+                    corrected.append('#' * p15_level + ' ' + heading_text)
+                    continue
+            corrected.append(line)
+
+        result.append(full_marker)
+        result.append('\n'.join(corrected))
+        i += 3
+
+    if i < len(parts):
+        result.extend(parts[i:])
+    return ''.join(result)
+
+
+def filter_unmatched_p2_headings(
+    text: str,
+    document_context: DocumentContext,
+) -> str:
+    """Demote Phase 2 headings with no Phase 1.5 match to bold text.
+
+    Keeps H1 (document title), TOC pages, pages without P1.5 structure, and
+    pages whose P1.5 headings include a flowchart_section (Phase 2 generates
+    sub-section headings for flowcharts that P1.5 doesn't list individually).
+    Code block contents are never touched.
+    """
+    if not document_context.page_structures:
+        return text
+
+    _page_marker_re = re.compile(r'(<!-- page: (\d+) -->)')
+    parts = _page_marker_re.split(text)
+    result: list[str] = [parts[0]]
+
+    i = 1
+    while i < len(parts) - 2:
+        full_marker = parts[i]
+        pno = int(parts[i + 1])
+        content = parts[i + 2]
+
+        ps = document_context.page_structures.get(pno)
+        if ps is None or ps.is_toc_page:
+            result.append(full_marker)
+            result.append(content)
+            i += 3
+            continue
+
+        has_flowchart = any(h.type == 'flowchart_section' for h in ps.headings)
+        if has_flowchart:
+            result.append(full_marker)
+            result.append(content)
+            i += 3
+            continue
+
+        p15_headings = ps.headings + ps.appendix_headings
+        if not p15_headings:
+            result.append(full_marker)
+            result.append(content)
+            i += 3
+            continue
+
+        lines = content.split('\n')
+        corrected: list[str] = []
+        in_code = False
+        for line in lines:
+            if line.strip().startswith('```'):
+                in_code = not in_code
+                corrected.append(line)
+                continue
+            if in_code:
+                corrected.append(line)
+                continue
+            m = HEADING_LINE_RE.match(line)
+            if not m:
+                corrected.append(line)
+                continue
+            heading_text = m.group(2).strip()
+            if _find_p15_level(heading_text, p15_headings) is not None:
+                corrected.append(line)
+            else:
+                corrected.append(f'**{heading_text}**')
+
+        result.append(full_marker)
+        result.append('\n'.join(corrected))
+        i += 3
+
+    if i < len(parts):
+        result.extend(parts[i:])
+    return ''.join(result)
+
+
 def postprocess_markdown(
     raw_markdown: str,
     file_title: str,
@@ -1069,6 +1431,9 @@ def postprocess_markdown(
     text = strip_output_noise(text)
     text = repair_unclosed_html_tables(text)
     text = fix_markdown_table_header(text)
+    text = inject_missing_headings_from_outline(text, document_context)
+    text = correct_heading_levels_from_outline(text, document_context, p1_canonical=p1_canonical)
+    text = filter_unmatched_p2_headings(text, document_context)
     if not debug:
         text = re.sub(r'<!-- page: \d+ -->\n?', '', text)
     return text

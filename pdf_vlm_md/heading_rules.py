@@ -14,7 +14,7 @@ APPENDIX_TABLE_TITLE_RE = re.compile(
 )
 
 PLAIN_TABLE_TITLE_RE = re.compile(
-    r'^表\s*\d[\d\-－–]*[\s\-—–]?.*$',
+    r'^表\s*\d[\d\-－–]*[\s\-—–].{1,60}$',
     re.UNICODE,
 )
 

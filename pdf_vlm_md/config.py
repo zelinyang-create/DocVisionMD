@@ -12,6 +12,10 @@ class Config:
     api_base: str
     model: str
     outline_model: str
+    relevel_model: str
+    relevel_max_tokens: int
+    relevel_timeout: float
+    enable_relevel: bool
     enable_thinking: bool
     temperature: float
     top_p: float
@@ -49,6 +53,10 @@ def get_config() -> Config:
                 api_base=os.getenv("QWEN_API_BASE", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
                 model=model,
                 outline_model=outline_model,
+                relevel_model=os.getenv("QWEN_RELEVEL_MODEL", "qwen3.7-max").strip(),
+                relevel_max_tokens=int(os.getenv("QWEN_RELEVEL_MAX_TOKENS", "32768")),
+                relevel_timeout=float(os.getenv("QWEN_RELEVEL_TIMEOUT", "600")),
+                enable_relevel=os.getenv("ENABLE_RELEVEL", "true").lower() == "true",
                 enable_thinking=os.getenv("QWEN_ENABLE_THINKING", "false").lower() == "true",
                 temperature=float(os.getenv("QWEN_TEMPERATURE", "0")),
                 top_p=float(os.getenv("QWEN_TOP_P", "0.1")),

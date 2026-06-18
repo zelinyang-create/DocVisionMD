@@ -54,8 +54,9 @@ def extract_phase1_tail(ps: PageStructure) -> str | None:
     if ps.appendix_headings:
         parts.append(f'末尾附件标题：{ps.appendix_headings[-1].text}')
     if ps.table_titles:
-        last_title = ps.table_titles[-1]
-        parts.append(f'本页表格：{last_title.get("text", "")}')
+        titles_text = '、'.join(t.get('text', '') for t in ps.table_titles if t.get('text'))
+        if titles_text:
+            parts.append(f'本页表格：{titles_text}')
     if ps.notes:
         parts.append(f'备注：{ps.notes}')
     return ' | '.join(parts) if parts else None

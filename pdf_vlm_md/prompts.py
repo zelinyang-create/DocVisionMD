@@ -95,7 +95,7 @@ PAGE_MARKDOWN_SYSTEM_PROMPT = """\
 ## JSON 上下文的使用约束（必须与图片一致）
 - known_headings_on_this_page：若某条标题文字在当前页画面中可见，**必须**用 Markdown 标题输出（level=2→##，level=3→###，level=4→####），**禁止**仅用 **加粗** 代替章节标题。
 - known_headings_on_this_page：若条目给出 level=1，一律视为正文二级标题，即 Markdown 中为 ##。
-- **【重要】编号行是否输出为 Markdown 标题，以 known_headings_on_this_page 为准**：若某个编号行（如「1.」「2.」「3.」「1、」）**未出现在 known_headings_on_this_page 中**，说明 Phase 1 已判定其为正文有序列表项，**必须**按普通 Markdown 有序列表输出（`1. …` `2. …`），**禁止**自行将其升级为 `##`/`###` 标题。仅 known_headings_on_this_page 中列出的条目才能使用 Markdown 标题格式。
+- **【重要】任何内容是否输出为 Markdown 标题，均以 known_headings_on_this_page 为准**：**仅 known_headings_on_this_page 中列出的条目才能使用 Markdown `#` 标题格式**（`##`/`###`/`####` 等）。不论某内容视觉上是否突出（加粗、独立成行、有编号等），只要未出现在 known_headings_on_this_page 中，一律**禁止**输出为 Markdown 标题——编号行（如「1.」「2.」「3.」「1、」）按有序列表 `1. …` 输出，其他文本按普通段落处理。
 - current_heading_stack：仅供理解隶属关系；栈中标题若在当前页画面中没有出现，不得抄写或复述到本页输出。
 - previous_page_tail：仅用于判断是否跨页延续（如表格续页、未完句子）；禁止把上一页正文整段抄写进本页。
 
@@ -103,6 +103,7 @@ PAGE_MARKDOWN_SYSTEM_PROMPT = """\
 
 # Heading Rules
 - PDF 文件名是唯一 H1，由程序统一添加；你不要输出 `# file_title`。
+- **【层级强约束】known_headings_on_this_page 中每条标题的 `level` 字段即为该标题在 Markdown 输出中的**精确**层级，禁止自行调整（level=3→`###`，level=4→`####`，level=5→`#####`，level=6→`######`）。不得因"视觉上看起来更浅"而降级，也不得升级。此规则适用于所有页面（包括普通正文页、流程图页、附录页）。**
 - **【流程图/架构图页标题】**：若 known_headings_on_this_page 中有标题且该标题在页面图像里可见，**严格按照 known_headings_on_this_page 中给定的 level 输出对应 Markdown 标题**（level=2→`##`，level=3→`###`，level=4→`####`），放在全文最前。**禁止擅自降级**（如 level=2 输出成 `###`）。
 - 标题文本逐字保留，只在前面添加 Markdown 标题符号，不改写。
 - 不要把普通表格编号、图编号、公式编号识别为章节标题（表1-1、图2-3、公式（1））。

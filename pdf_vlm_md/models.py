@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal, Any
 
-HeadingType = Literal["body_heading", "appendix_heading", "toc_item", "table_title", "figure_title", "unknown"]
+HeadingType = Literal["body_heading", "appendix_heading", "toc_item", "table_title", "figure_title", "flowchart_section", "unknown"]
 RegionType = Literal["toc", "body", "appendix", "table", "figure"]
 ExtractionMethod = Literal["pymupdf", "vlm", "hybrid"]
 VisualProminence = Literal["high", "normal"]

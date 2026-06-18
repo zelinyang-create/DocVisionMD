@@ -18,11 +18,10 @@ def test_strip_html_page_footer_div():
     assert "后续" in out
 
 
-def test_demote_cover_doc_heading():
+def test_cover_doc_heading_preserved():
     inp = "# 设计文档\n\n## 工艺文件\n\n项目编号"
     out = strip_output_noise(inp)
-    assert "## 工艺文件" not in out
-    assert "**工艺文件**" in out
+    assert "## 工艺文件" in out
 
 
 def test_pipeline_strips_noise():
@@ -37,4 +36,4 @@ def test_pipeline_strips_noise():
     out = postprocess_markdown(raw, "设计文档", ctx)
     assert "第 2 页" not in out
     assert "<div" not in out
-    assert "**工艺文件**" in out
+    assert "## 工艺文件" in out

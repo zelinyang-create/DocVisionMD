@@ -1,4 +1,4 @@
-from pdf_vlm_md.postprocess import fix_numbered_heading_levels, demote_table_figure_headings
+from pdf_vlm_md.postprocess import fix_numbered_heading_levels
 from pdf_vlm_md.validators import validate_notsure_tags, repair_notsure_tags, repair_markdown, ValidationReport
 from pdf_vlm_md.utils import strip_notsure
 

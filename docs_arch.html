@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pdf_vlm_md — 架构文档</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #f9f9fb;
+  --border: #e8e8ed;
+  --text: #1c1c1e;
+  --text-2: #515154;
+  --text-3: #aeaeb2;
+  --accent: #0066cc;
+  --accent-bg: #f0f6ff;
+  --green: #1d7a4f;
+  --green-bg: #f0faf5;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 40px; height: 48px; gap: 32px;
+}
+.nav-brand {
+  font-family: var(--mono); font-size: 13px; font-weight: 500;
+  color: var(--text); letter-spacing: .02em; white-space: nowrap;
+}
+.nav-links { display: flex; gap: 0; }
+.nav-links a {
+  font-size: 13px; color: var(--text-3);
+  text-decoration: none; padding: 6px 10px;
+  border-radius: 4px; transition: color .12s;
+}
+.nav-links a:hover { color: var(--text); }
+.nav-links a.active { color: var(--accent); }
+
+/* LAYOUT */
+.wrap { max-width: 880px; margin: 0 auto; padding: 0 40px 80px; }
+
+/* HERO */
+.hero { padding: 56px 0 48px; border-bottom: 1px solid var(--border); margin-bottom: 56px; }
+.hero h1 {
+  font-size: 28px; font-weight: 600; letter-spacing: -.02em;
+  line-height: 1.25; margin-bottom: 12px; color: var(--text);
+}
+.hero-desc {
+  font-size: 15px; color: var(--text-2); max-width: 580px;
+  line-height: 1.7; font-weight: 300; margin-bottom: 24px;
+}
+.hero-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-family: var(--mono); font-size: 11px; color: var(--text-2);
+  background: var(--bg-subtle); border: 1px solid var(--border);
+  border-radius: 3px; padding: 3px 8px;
+}
+
+/* SECTION */
+section { margin-bottom: 60px; scroll-margin-top: 60px; }
+.sh { display: flex; align-items: baseline; gap: 10px; margin-bottom: 24px; }
+.sh-num { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+.sh h2 { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+
+/* FLOWCHART */
+.fc-wrap {
+  display: grid; grid-template-columns: 1fr 260px;
+  align-items: center; gap: 0;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-subtle); padding: 24px 20px 24px 32px;
+  margin-bottom: 24px;
+}
+.fc-main { display: flex; justify-content: center; padding-right: 12px; }
+/* 连接线行：拉伸至行全高，让连接线首尾紧贴相邻节点 */
+.fc-main.fc-conn-wrap { align-self: stretch; align-items: stretch; }
+.fc-main.fc-conn-wrap .fc-conn { height: 100%; min-height: 44px; }
+.fc-aside {
+  padding: 5px 0 5px 18px; border-left: 1px solid var(--border);
+  display: flex; align-items: center; min-height: 1px;
+}
+.fc-note { display: flex; flex-direction: column; gap: 3px; }
+.fc-nfn { font-family: var(--mono); font-size: 10.5px; font-weight: 500; color: var(--accent); }
+.fc-ntxt { font-size: 11.5px; color: var(--text-2); line-height: 1.6; }
+
+.fc-pill {
+  font-family: var(--mono); font-size: 12.5px; font-weight: 500;
+  padding: 8px 28px; border-radius: 40px;
+  border: 1.5px solid #d0d0da; background: var(--bg); color: var(--text);
+  display: inline-block; white-space: nowrap; letter-spacing: .02em;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+}
+.fc-pill.inter { color: var(--text-2); font-size: 12px; padding: 5px 22px; border-color: var(--border); box-shadow: none; }
+.fc-pill.out { color: var(--green); border-color: #a8d5bc; background: var(--green-bg); }
+
+.fc-conn { display: flex; flex-direction: column; align-items: center; width: 32px; height: 44px; }
+.fc-vline { width: 2px; flex: 1; background: #c8c8d4; }
+.fc-arrowhead { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #c0c0cc; }
+
+.fc-card { width: 100%; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); }
+.fc-card.p1 { border-left: 3px solid var(--accent); }
+.fc-card.p2 { border-left: 3px solid var(--green); }
+.fc-card-h {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; border-bottom: 1px solid var(--border);
+}
+.fc-card-title { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+.fc-card-meta { font-family: var(--mono); font-size: 10px; color: var(--text-3); }
+.fc-badge { font-family: var(--mono); font-size: 9.5px; font-weight: 500; padding: 2px 7px; border-radius: 3px; flex-shrink: 0; }
+.fc-badge.p1 { background: var(--accent-bg); color: var(--accent); }
+.fc-badge.p2 { background: var(--green-bg); color: var(--green); }
+.fc-card-b { padding: 9px 14px 11px; display: flex; flex-direction: column; gap: 4px; }
+.fc-row { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; color: var(--text-2); line-height: 1.65; }
+.fc-row::before { content: ''; width: 3px; height: 3px; border-radius: 50%; background: var(--text-3); flex-shrink: 0; }
+.fc-workers { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; }
+.fc-worker { font-family: var(--mono); font-size: 10px; color: var(--text-3); background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 3px; padding: 2px 7px; }
+.fc-worker.ghost { border-style: dashed; }
+.fc-passes { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 5px; }
+.fc-pass { font-family: var(--mono); font-size: 9.5px; color: var(--text-3); background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; }
+
+/* STEP GROUPS */
+.sgs { display: flex; flex-direction: column; gap: 12px; }
+.sg { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.sg-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 16px; background: var(--bg-subtle); border-bottom: 1px solid var(--border);
+}
+.sg-badge { font-family: var(--mono); font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 3px; flex-shrink: 0; }
+.sg-badge.p1 { background: var(--accent-bg); color: var(--accent); }
+.sg-badge.p2 { background: var(--green-bg); color: var(--green); }
+.sg-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
+
+.ss { display: flex; border-bottom: 1px solid var(--border); }
+.ss:last-child { border-bottom: none; }
+.ss-n {
+  font-family: var(--mono); font-size: 10px; color: var(--text-3);
+  width: 40px; flex-shrink: 0;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 14px 0; border-right: 1px solid var(--border); background: var(--bg-subtle);
+}
+.ss-body { padding: 13px 18px; flex: 1; }
+.ss-name { font-family: var(--mono); font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: 5px; }
+.ss-desc { font-size: 13px; color: var(--text-2); line-height: 1.65; }
+.ss-desc + .code { margin-top: 10px; }
+
+@media (max-width: 640px) {
+  .fc-wrap { grid-template-columns: 1fr; }
+  .fc-aside { border-left: none; border-top: 1px solid var(--border); padding: 10px 0 0; }
+  .sgs .code { font-size: 11px; }
+}
+
+/* PHASE GRID */
+.phase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 1px; }
+.pc { background: var(--bg); padding: 24px; }
+.pc-label { font-family: var(--mono); font-size: 11px; color: var(--text-3); margin-bottom: 10px; }
+.pc h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+.pc p { font-size: 13px; color: var(--text-2); line-height: 1.65; margin-bottom: 12px; }
+.pc ul { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.pc ul li { font-size: 13px; color: var(--text-2); padding-left: 14px; position: relative; line-height: 1.55; }
+.pc ul li::before { content: '–'; position: absolute; left: 0; color: var(--text-3); }
+
+.table-note { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-top: 12px; }
+.table-note-row { display: grid; grid-template-columns: 1fr 1fr; }
+.tnc { padding: 14px 16px; border-right: 1px solid var(--border); }
+.tnc:last-child { border-right: none; }
+.tnc-label { font-family: var(--mono); font-size: 11px; color: var(--text-3); margin-bottom: 4px; }
+.tnc p { font-size: 12.5px; color: var(--text-2); }
+
+/* PP GRID */
+.pp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.pp {
+  background: var(--bg); padding: 14px 16px;
+  cursor: pointer; transition: background .1s;
+  display: flex; flex-direction: column; gap: 0;
+}
+.pp:hover { background: var(--bg-subtle); }
+.pp.open { background: var(--accent-bg); }
+.pp-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pp-name { font-family: var(--mono); font-size: 11.5px; font-weight: 500; color: var(--text); line-height: 1.4; }
+.pp.open .pp-name { color: var(--accent); }
+.pp-n { font-family: var(--mono); font-size: 10px; color: var(--text-3); }
+.pp-desc { font-size: 12px; color: var(--text-2); line-height: 1.55; margin-top: 8px; display: none; }
+.pp.open .pp-desc { display: block; }
+
+/* ALGO */
+.algo { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+.algo-h {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; cursor: pointer; transition: background .1s;
+}
+.algo-h:hover { background: var(--bg-subtle); }
+.algo.open .algo-h { background: var(--accent-bg); }
+.algo-title { flex: 1; }
+.algo-name { font-size: 14px; font-weight: 500; color: var(--text); }
+.algo.open .algo-name { color: var(--accent); }
+.algo-file { font-family: var(--mono); font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.algo-tog { font-family: var(--mono); font-size: 16px; color: var(--text-3); transition: transform .2s; }
+.algo.open .algo-tog { transform: rotate(45deg); color: var(--accent); }
+.algo-body { max-height: 0; overflow: hidden; transition: max-height .28s ease; border-top: 1px solid transparent; }
+.algo.open .algo-body { max-height: 500px; border-top-color: var(--border); }
+.algo-inner { padding: 16px; }
+.algo-inner p { font-size: 13px; color: var(--text-2); line-height: 1.7; margin-bottom: 10px; }
+.algo-inner p:last-child { margin-bottom: 0; }
+.steps { list-style: none; margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.steps li { display: flex; gap: 8px; font-size: 13px; color: var(--text-2); line-height: 1.6; }
+.sn { font-family: var(--mono); font-size: 10px; font-weight: 500; color: var(--accent); background: var(--accent-bg); border-radius: 3px; padding: 1px 5px; flex-shrink: 0; margin-top: 4px; height: fit-content; }
+
+/* MODEL TABS */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+.tab { font-family: var(--mono); font-size: 12px; color: var(--text-3); padding: 8px 14px; cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .12s; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.mbody { display: none; }
+.mbody.active { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.field { border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; }
+.field-n { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--accent); }
+.field-t { font-family: var(--mono); font-size: 11px; color: var(--text-3); margin: 2px 0; }
+.field-d { font-size: 12.5px; color: var(--text-2); }
+
+/* CONFIG TABLE — shared by prompt param tables */
+.ctable { width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.ctable th { font-family: var(--mono); font-size: 11px; color: var(--text-3); text-align: left; padding: 9px 14px; background: var(--bg-subtle); border-bottom: 1px solid var(--border); font-weight: 500; }
+.ctable td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text-2); }
+.ctable tr:last-child td { border-bottom: none; }
+.ctable tr:hover td { background: var(--bg-subtle); }
+.cvar { font-family: var(--mono); font-size: 12px; color: var(--text); }
+.cdef { font-family: var(--mono); font-size: 12px; color: var(--text-3); }
+
+/* CODE */
+.code {
+  font-family: var(--mono); font-size: 12px; background: var(--bg-subtle);
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 14px 16px; line-height: 1.7; overflow-x: auto;
+  margin: 14px 0; color: var(--text);
+  white-space: pre-wrap;
+}
+.code .k { color: var(--accent); }
+.code .c { color: var(--text-2); font-style: italic; }
+
+/* DIVIDER */
+hr { border: none; border-top: 1px solid var(--border); margin: 0 0 56px; }
+
+/* SCROLL PROGRESS */
+#bar { position: fixed; top: 0; left: 0; height: 2px; background: var(--accent); width: 0; z-index: 200; }
+
+/* FOOTER */
+footer { border-top: 1px solid var(--border); padding: 24px 40px; text-align: center; font-size: 12px; color: var(--text-3); }
+
+@media (max-width: 640px) {
+  nav { padding: 0 20px; }
+  .wrap { padding: 0 20px 60px; }
+  .phase-grid, .pp-grid, .mbody.active, .table-note-row { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 22px; }
+}
+
+/* PROMPTS */
+.pmt-code { max-height: 440px; overflow-y: auto; }
+.algo.pmt.open .algo-body { max-height: 4000px; }
+</style>
+</head>
+<body>
+
+<div id="bar"></div>
+
+<nav>
+  <span class="nav-brand">pdf_vlm_md</span>
+  <div class="nav-links">
+    <a href="#overview">概览</a>
+    <a href="#pipeline">流程</a>
+    <a href="#phases">两阶段</a>
+    <a href="#postprocess">后处理</a>
+    <a href="#algorithms">算法</a>
+    <a href="#models">数据模型</a>
+    <a href="#prompts">Prompt</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <div class="hero" id="overview">
+    <h1>PDF → Markdown 转换器</h1>
+    <p class="hero-desc">将 PDF 每页渲染为图像，通过视觉语言模型（VLM）结构化提取内容。串行 Phase 1 建立全文标题体系，并行 Phase 2 转换正文，最终经 20 遍确定性规则管道输出干净的 Markdown。</p>
+    <div class="hero-tags">
+      <span class="tag">Python 3.12+</span>
+      <span class="tag">PyMuPDF</span>
+      <span class="tag">Qwen VLM</span>
+      <span class="tag">ThreadPoolExecutor</span>
+      <span class="tag">Regex postprocess</span>
+    </div>
+  </div>
+
+  <!-- PIPELINE -->
+  <section id="pipeline">
+    <div class="sh"><span class="sh-num">01</span><h2>整体处理流程</h2></div>
+
+    <!-- Architecture Diagram with Annotations -->
+    <div class="fc-wrap">
+
+      <!-- input.pdf -->
+      <div class="fc-main"><span class="fc-pill">input.pdf</span></div>
+      <div class="fc-aside"></div>
+
+      <!-- connector: render -->
+      <div class="fc-main fc-conn-wrap">
+        <div class="fc-conn"><div class="fc-vline"></div><div class="fc-arrowhead"></div></div>
+      </div>
+      <div class="fc-aside">
+        <div class="fc-note">
+          <div class="fc-nfn">render_pdf_to_images() · pdf_extractor.py</div>
+          <div class="fc-ntxt">PyMuPDF 将 PDF 每页栅格化为 PNG。分辨率由 <code>PDF_RENDER_DPI</code> 控制（默认 600 DPI），图像写入 <code>_debug/pages_img/</code> 供后续两阶段复用。</div>
+        </div>
+      </div>
+
+      <!-- page_images -->
+      <div class="fc-main"><span class="fc-pill inter">page_images[ ]</span></div>
+      <div class="fc-aside"></div>
+
+      <!-- connector → Phase 1 -->
+      <div class="fc-main fc-conn-wrap">
+        <div class="fc-conn"><div class="fc-vline"></div><div class="fc-arrowhead"></div></div>
+      </div>
+      <div class="fc-aside"></div>
+
+      <!-- Phase 1 -->
+      <div class="fc-main">
+        <div class="fc-card p1">
+          <div class="fc-card-h">
+            <span class="fc-badge p1">Phase 1 · 串行</span>
+            <span class="fc-card-title">结构提取</span>
+            <span class="fc-card-meta">outline.py</span>
+          </div>
+          <div class="fc-card-b">
+            <div class="fc-row">VLM 逐页分析 → PageStructure × N</div>
+            <div class="fc-row">normalize_global_headings() → phase1_canonical</div>
+            <div class="fc-row" style="color:var(--accent);font-weight:500">relevel_headings_with_llm() → 层级全局修正</div>
+            <div class="fc-row">precompute_page_contexts() → PageContext × N</div>
+          </div>
+        </div>
+      </div>
+      <div class="fc-aside">
+        <div class="fc-note">
+          <div class="fc-nfn">run_phase1()</div>
+          <div class="fc-ntxt">串行逐页调用 VLM，每页只输出 JSON 结构元数据（不含正文）。前一页摘要作为 <code>previous_page_tail</code> 传入下一页，保持跨页上下文连贯。完成后全局归一化标题层级。</div>
+        </div>
+      </div>
+
+      <!-- connector → Phase 2 -->
+      <div class="fc-main fc-conn-wrap">
+        <div class="fc-conn"><div class="fc-vline"></div><div class="fc-arrowhead"></div></div>
+      </div>
+      <div class="fc-aside"></div>
+
+      <!-- Phase 2 -->
+      <div class="fc-main">
+        <div class="fc-card p2">
+          <div class="fc-card-h">
+            <span class="fc-badge p2">Phase 2 · 并行</span>
+            <span class="fc-card-title">内容转换</span>
+            <span class="fc-card-meta">convert_page.py</span>
+          </div>
+          <div class="fc-card-b">
+            <div class="fc-workers">
+              <span class="fc-worker">Page 1</span>
+              <span class="fc-worker">Page 2</span>
+              <span class="fc-worker">Page 3</span>
+              <span class="fc-worker ghost">···</span>
+              <span class="fc-worker">Page N</span>
+            </div>
+            <div class="fc-row">ThreadPoolExecutor · max_workers=16</div>
+            <div class="fc-row">repair_tail_continuations()</div>
+          </div>
+        </div>
+      </div>
+      <div class="fc-aside">
+        <div class="fc-note">
+          <div class="fc-nfn">_run_phase2_parallel()</div>
+          <div class="fc-ntxt">Phase 1 预算好每页的 <code>PageContext</code> 后，各页完全独立，可并行调用 VLM 转换正文。全部完成后检测跨页续接问题，对命中页重跑。</div>
+        </div>
+      </div>
+
+      <!-- connector → Postprocess -->
+      <div class="fc-main fc-conn-wrap">
+        <div class="fc-conn"><div class="fc-vline"></div><div class="fc-arrowhead"></div></div>
+      </div>
+      <div class="fc-aside"></div>
+
+      <!-- Postprocess -->
+      <div class="fc-main">
+        <div class="fc-card">
+          <div class="fc-card-h">
+            <span class="fc-card-title">后处理管道</span>
+            <span class="fc-card-meta">postprocess.py · 20 passes</span>
+          </div>
+          <div class="fc-card-b">
+            <div class="fc-passes" id="archPasses"></div>
+            <div class="fc-row">validate_markdown() + repair_markdown()</div>
+          </div>
+        </div>
+      </div>
+      <div class="fc-aside">
+        <div class="fc-note">
+          <div class="fc-nfn">postprocess_markdown()</div>
+          <div class="fc-ntxt">20 遍顺序执行的确定性正则规则，无 VLM 调用。以 <code>phase1_canonical</code> 为锚点修正标题层级，涵盖目录列表化、表格修复、附件归一化等。</div>
+        </div>
+      </div>
+
+      <!-- connector → output -->
+      <div class="fc-main fc-conn-wrap">
+        <div class="fc-conn"><div class="fc-vline"></div><div class="fc-arrowhead"></div></div>
+      </div>
+      <div class="fc-aside"></div>
+
+      <!-- output.md -->
+      <div class="fc-main"><span class="fc-pill out">output.md</span></div>
+      <div class="fc-aside"></div>
+
+    </div>
+
+    <!-- Step Details -->
+    <div class="sgs">
+
+      <!-- ── PDF 渲染 ── -->
+      <div class="sg">
+        <div class="sg-head">
+          <span class="sg-title">PDF 渲染</span>
+        </div>
+        <div class="ss">
+          <div class="ss-n">01</div>
+          <div class="ss-body">
+            <div class="ss-name">render_pdf_to_images() · pdf_extractor.py</div>
+            <div class="ss-desc">用 PyMuPDF（fitz）将 PDF 每页栅格化为 PNG 图像，写入 <code>_debug/pages_img/</code>。同一批图像同时供 Phase 1 和 Phase 2 复用，无需重复 IO。DPI 越高 VLM 识别率越好，但处理时间和内存线性增加。</div>
+            <div class="code">PDF_RENDER_DPI=600  <span class="c"># A4 → 约 4960×7016 px，推荐</span>
+PDF_RENDER_DPI=300  <span class="c"># 速度快约 4×，适合草稿验证</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Phase 1 ── -->
+      <div class="sg">
+        <div class="sg-head">
+          <span class="sg-badge p1">Phase 1 · 串行</span>
+          <span class="sg-title">结构提取 — run_phase1()</span>
+        </div>
+
+        <div class="ss">
+          <div class="ss-n">01</div>
+          <div class="ss-body">
+            <div class="ss-name">extract_page_structure_vlm() — VLM 逐页串行分析</div>
+            <div class="ss-desc">每页传入图像 + 文件标题 + 页码 + <code>previous_page_tail</code>（前页结构摘要）+ 当前标题栈，调用 VLM 输出 JSON。JSON 解析为 <code>PageStructure</code>，包含标题列表、目录页/附件页/跨页表格标记。<code>visual_prominence=normal</code> 且 <code>confidence &lt; 0.80</code> 的条目视为正文编号误判，直接过滤。随后调用 <code>enrich_page_structure()</code> 用 PDF 文本层补充修正，再检测流程图页漏报并从文本层恢复标题。</div>
+            <div class="code"><span class="c"># VLM 每页输出（JSON）</span>
+{
+  "page_no": 3,
+  "is_toc_page": false,
+  "is_table_continuation": false,
+  "headings": [
+    { "text": "二、原材料要求", "level": 2, "confidence": 0.95, "visual_prominence": "high" },
+    { "text": "2.1 钢材规格",  "level": 3, "confidence": 0.92, "visual_prominence": "high" },
+    { "text": "1. 检验合格",   "level": 3, "confidence": 0.61, "visual_prominence": "normal" }
+    <span class="c">// ↑ confidence=0.61 &lt; 0.80 且 normal → 过滤掉</span>
+  ],
+  "table_titles": [{ "text": "表 2-1 钢材尺寸规格" }]
+}</div>
+          </div>
+        </div>
+
+        <div class="ss">
+          <div class="ss-n">02</div>
+          <div class="ss-body">
+            <div class="ss-name">update_heading_stack() — 累积标题栈</div>
+            <div class="ss-desc">每页 VLM 分析后立即更新累积标题栈，传给下一页 VLM 的 <code>current_heading_stack</code> 参数，使 VLM 知道当前处于文档哪一层级。算法：新标题入栈前弹出所有层级 ≥ 新标题的旧条目，再 push 新标题（浅层标题覆盖深层）。</div>
+            <div class="code"><span class="c"># 示例：标题栈变化</span>
+<span class="c"># 栈初始：[H2 一、总则, H3 1.1 适用范围]</span>
+<span class="c"># 新标题：H2 二、原材料要求</span>
+<span class="c"># 步骤：弹出 H3（level≥2），弹出 H2（level≥2），push 新 H2</span>
+<span class="c"># 栈结果：[H2 二、原材料要求]</span></div>
+          </div>
+        </div>
+
+        <div class="ss">
+          <div class="ss-n">03</div>
+          <div class="ss-body">
+            <div class="ss-name">normalize_global_headings() → phase1_canonical</div>
+            <div class="ss-desc">所有页分析完毕后，VLM 可能对同一标题在不同页输出不同层级（如第 3 页 <code>## 二</code>、第 7 页 <code>### 二</code>）。遍历所有 <code>PageStructure</code>，以归一化文本（去数字、去标点）为 key，记录全文最小层级，输出 <code>phase1_canonical</code> 字典，供后处理最终 Pass 使用。</div>
+            <div class="code"><span class="c"># phase1_canonical 示例</span>
+{
+  "二原材料要求":  2,   <span class="c"># 全文最小层级 H2</span>
+  "钢材规格":     3,
+  "检验方法":     3,
+  "附件":         2,
+}
+<span class="c"># normalize_markdown_heading_levels() 用此字典重写最终输出</span></div>
+          </div>
+        </div>
+
+        <div class="ss">
+          <div class="ss-n" style="color:var(--accent)">04</div>
+          <div class="ss-body">
+            <div class="ss-name" style="color:var(--accent)">relevel_headings_with_llm() — Phase 1.5：LLM 全局层级修正</div>
+            <div class="ss-desc">Phase 1 逐页提取的最大缺陷：每页 VLM 只看当前页，无法知晓整篇文档的层级全貌，导致同类标题（如工序章节的附表）在不同页被赋予不同层级。此步骤在全部 PageStructure 生成后、precompute 之前，将所有标题序列化为纯文本 JSON，<strong>单次</strong>调用 LLM（无图片、无并行），从全局视角统一修正 level 字段。<br><br>修正策略：① 同类工序章节（G01…G15 等）强制平级；② 附表/附件降为所属章节 level+1；③ 正文小节（本工序要点：等）降为所属章节 level+1。修正结果直接写回 Heading.level，后续 precompute_page_contexts 和 Phase 2 使用修正后的层级。<br><br>容错：LLM 输出条目数不符、text/page 不匹配、level 越界时均保留原值；LLM 调用失败则静默跳过，整体流程不中断。设置 <code>ENABLE_RELEVEL=false</code> 可完全跳过此步骤。</div>
+            <div class="code"><span class="c"># 输入（所有非目录页标题，纯 JSON，无图片）</span>
+{
+  "file_title": "NPD2426工艺文件",
+  "headings": [
+    {"page": 16, "text": "G02 瓷浆精炼工序工艺规程", "level": 2},
+    {"page": 25, "text": "附表 1 ...配方表", "level": 2},  <span class="c">// ← 误置，应为 3</span>
+    {"page": 31, "text": "G03 涂布工序工艺规程", "level": 2},
+    ...
+  ]
+}
+
+<span class="c"># LLM 输出（只改 level，不改 text/page）</span>
+[
+  {"page": 16, "text": "G02 瓷浆精炼工序工艺规程", "level": 2},
+  {"page": 25, "text": "附表 1 ...配方表",           "level": 3},  <span class="c">// ← 修正</span>
+  {"page": 31, "text": "G03 涂布工序工艺规程",       "level": 2},
+  ...
+]</div>
+          </div>
+        </div>
+
+        <div class="ss">
+          <div class="ss-n">05</div>
+          <div class="ss-body">
+            <div class="ss-name">precompute_page_contexts() → PageContext × N</div>
+            <div class="ss-desc">重放标题栈算法（与上面 <code>update_heading_stack</code> 相同逻辑），从头到尾模拟文档遍历，为每页快照正确的标题路径。若不预算而让 Phase 2 直接用 Phase 1 末页的标题栈，所有页面都会共用同一错误的标题上下文。</div>
+            <div class="code"><span class="c"># 为何需要预算</span>
+<span class="c"># Phase 2 是并行的，无法保证执行顺序</span>
+<span class="c"># 必须在 Phase 1 结束后串行预算每页的 PageContext</span>
+<span class="c"># 这样第 3 页用第 2 页结束时的标题栈，而非第 50 页的</span>
+
+contexts = precompute_page_contexts(document_context, page_raw_texts)
+<span class="c"># contexts[3].current_heading_stack → 第 3 页开始时的正确标题路径</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Phase 2 ── -->
+      <div class="sg">
+        <div class="sg-head">
+          <span class="sg-badge p2">Phase 2 · 并行</span>
+          <span class="sg-title">内容转换 — _run_phase2_parallel()</span>
+        </div>
+
+        <div class="ss">
+          <div class="ss-n">01</div>
+          <div class="ss-body">
+            <div class="ss-name">convert_page_to_markdown() × N — ThreadPoolExecutor 并行</div>
+            <div class="ss-desc">每个线程接收页面图像 + 预算好的 <code>PageContext</code>（含标题栈、前驱尾段、是否流程图页等），调用 VLM 输出该页完整 Markdown。<code>PageContext</code> 已包含所有必要上下文，各页之间无数据依赖，可完全并行。任一页 VLM 调用失败时结果保留空串，不中断其余页面。</div>
+            <div class="code"><span class="k">with</span> ThreadPoolExecutor(max_workers=16) <span class="k">as</span> pool:
+    futures = {pool.submit(convert_one, p): p
+               <span class="k">for</span> p <span class="k">in</span> range(1, total_pages + 1)}
+    <span class="k">for</span> f <span class="k">in</span> as_completed(futures):
+        pno = futures[f]
+        <span class="k">try</span>:
+            page_no, md = f.result()
+            results[page_no] = md
+        <span class="k">except</span> Exception:
+            <span class="k">pass</span>  <span class="c"># results[pno] 保持空串，不中断</span></div>
+          </div>
+        </div>
+
+        <div class="ss">
+          <div class="ss-n">02</div>
+          <div class="ss-body">
+            <div class="ss-name">repair_tail_continuations() — 跨页续接修复</div>
+            <div class="ss-desc">Phase 2 并行时每页用 Phase 1 的结构摘要作为前驱尾段（非真实文本），可能造成两类续接错误：① 跨页表格断裂（上页末行是 <code>|</code>，当前页首行也是 <code>|</code> 但第二行不是分隔行）；② 语句截断（当前页首行以小写字母或中文逗号开头）。对命中的页，提取上一页真实 Markdown 末尾 300 字符，创建新 <code>PageContext</code> 副本并重跑 VLM。</div>
+            <div class="code"><span class="c"># 续接检测逻辑</span>
+prev_ends_table   = prev_lines[-1].startswith(<span class="c">'|'</span>)
+curr_mid_table    = (curr_lines[0].startswith(<span class="c">'|'</span>)
+                     <span class="k">and not</span> is_separator(curr_lines[1]))
+curr_mid_sentence = re.match(<span class="c">r'^[a-z，。、；：]'</span>, curr_lines[0])
+
+<span class="k">if</span> (prev_ends_table <span class="k">and</span> curr_mid_table) <span class="k">or</span> curr_mid_sentence:
+    real_tail = extract_tail_text(results[n-1], max_chars=300)
+    ctx = dataclasses.replace(contexts[n], previous_page_tail=real_tail)
+    results[n] = convert_page_to_markdown(images[n], ctx)</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── 后处理 ── -->
+      <div class="sg">
+        <div class="sg-head">
+          <span class="sg-title">后处理管道 — postprocess_markdown()</span>
+        </div>
+
+        <div class="ss">
+          <div class="ss-n">01</div>
+          <div class="ss-body">
+            <div class="ss-name">20 遍顺序规则管道 · postprocess.py</div>
+            <div class="ss-desc">20 遍确定性正则规则，无 VLM 调用，顺序执行。每遍接收上一遍的输出，以 <code>phase1_canonical</code> 为标题层级锚点修正 Phase 2 的随机偏差。各 Pass 的功能和顺序见第 <strong>03 节</strong>后处理管道。</div>
+            <div class="code"><span class="c"># 典型修正：标题层级归一化</span>
+<span class="c"># Before — 同一标题在不同页被 VLM 输出为不同层级</span>
+### 二、原材料要求    <span class="c"># 第 3 页</span>
+## 二、原材料要求     <span class="c"># 第 7 页</span>
+<span class="c"># After — phase1_canonical 锚定 H2，全文统一</span>
+## 二、原材料要求
+## 二、原材料要求
+
+<span class="c"># 典型修正：连续编号标题降为有序列表（≥4 条）</span>
+<span class="c"># Before</span>
+## 1. 检查外观  ## 2. 测量尺寸  ## 3. 核对标识  ## 4. 填写记录
+<span class="c"># After</span>
+1. 检查外观    2. 测量尺寸    3. 核对标识    4. 填写记录</div>
+          </div>
+        </div>
+
+        <div class="ss">
+          <div class="ss-n">02</div>
+          <div class="ss-body">
+            <div class="ss-name">validate_markdown() + repair_markdown()</div>
+            <div class="ss-desc">最终校验层。<code>validate_markdown()</code> 扫描输出 Markdown 的结构错误（如未闭合的 HTML 标签、缺失表头等），返回 <code>ValidationReport</code>。若 <code>report.has_errors</code> 为真，则调用 <code>repair_markdown()</code> 按报告内容补救，确保输出文件是合法的 Markdown。</div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="code" style="margin-top:16px"><span class="c"># 入口命令</span>
+python <span class="k">-m</span> pdf_vlm_md convert input.pdf <span class="k">-o</span> output.md</div>
+  </section>
+
+  <!-- PHASES -->
+  <section id="phases">
+    <div class="sh"><span class="sh-num">02</span><h2>两阶段 VLM 调用</h2></div>
+
+    <div class="phase-grid">
+      <div class="pc">
+        <div class="pc-label">PHASE 1 · outline.py · 串行</div>
+        <h3>结构提取</h3>
+        <p>逐页串行调用 VLM，只提取结构元数据，不输出正文内容。每页的结构摘要作为 <code>previous_page_tail</code> 传给下一页，保持跨页上下文连贯。</p>
+        <ul>
+          <li>输出每页 JSON：标题列表、目录页、附件页、跨页表格标记</li>
+          <li>VLM 返回 <code>visual_prominence</code> + <code>confidence</code> 双重置信度</li>
+          <li>confidence &lt; 0.80 且 prominence=normal 的条目直接过滤</li>
+          <li>流程图页 VLM 漏报时，从 PDF 文本层恢复标题（兜底）</li>
+          <li>完成后全局归一化标题层级，输出 <code>phase1_canonical</code></li>
+          <li><strong>Phase 1.5</strong>：单次 LLM 文本调用（无图片），全局修正层级混乱的附表/附件和正文小节；失败时静默回退</li>
+        </ul>
+      </div>
+      <div class="pc">
+        <div class="pc-label">PHASE 2 · convert_page.py · 并行</div>
+        <h3>内容转换</h3>
+        <p>用 Phase 1 预算好的 <code>PageContext</code>（含标题栈、前驱尾段）并行批量调用 VLM，每页独立输出完整 Markdown，页面间无依赖。</p>
+        <ul>
+          <li>precompute_page_contexts 为每页预算正确的前驱标题栈</li>
+          <li>ThreadPoolExecutor，最多 <code>PHASE2_MAX_WORKERS</code>（默认 16）并发</li>
+          <li>任一页失败保留空串，不中断其余页面</li>
+          <li>检测跨页表格断裂 / 小写开头误续行</li>
+          <li>对问题页用真实前驱尾段重跑（repair_tail_continuations）</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="table-note">
+      <div class="table-note-row">
+        <div class="tnc">
+          <div class="tnc-label">简单表格 → Markdown |</div>
+          <p>无合并单元格，VLM 直接输出 <code>|...|</code> 语法</p>
+        </div>
+        <div class="tnc">
+          <div class="tnc-label">复杂表格 → HTML &lt;table&gt;</div>
+          <p>含 colspan/rowspan，输出带显式属性的 HTML 表格</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- POSTPROCESS -->
+  <section id="postprocess">
+    <div class="sh"><span class="sh-num">03</span><h2>后处理管道</h2></div>
+    <p style="font-size:13px;color:var(--text-2);margin-bottom:16px;line-height:1.65">全部为确定性正则规则，无 VLM 调用，按顺序执行。点击每个 Pass 查看说明。</p>
+    <div class="pp-grid" id="ppGrid"></div>
+  </section>
+
+  <!-- ALGORITHMS -->
+  <section id="algorithms">
+    <div class="sh"><span class="sh-num">04</span><h2>核心算法</h2></div>
+    <div id="algoList"></div>
+  </section>
+
+  <!-- MODELS -->
+  <section id="models">
+    <div class="sh"><span class="sh-num">05</span><h2>数据模型</h2></div>
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-t="m0">DocumentContext</button>
+      <button class="tab" data-t="m1">PageContext</button>
+      <button class="tab" data-t="m2">PageStructure</button>
+      <button class="tab" data-t="m3">Heading</button>
+    </div>
+    <div id="m0" class="mbody active"></div>
+    <div id="m1" class="mbody"></div>
+    <div id="m2" class="mbody"></div>
+    <div id="m3" class="mbody"></div>
+  </section>
+
+  <!-- PROMPTS -->
+  <section id="prompts">
+    <div class="sh"><span class="sh-num">06</span><h2>VLM Prompt</h2></div>
+    <p style="font-size:13px;color:var(--text-2);margin-bottom:16px;line-height:1.65">两阶段各使用独立的系统 prompt，通过 JSON 用户消息传入参数。点击展开查看完整 prompt 文本。</p>
+
+    <!-- Phase 1 -->
+    <div class="algo pmt" style="margin-bottom:8px">
+      <div class="algo-h" onclick="this.parentElement.classList.toggle('open')">
+        <div class="algo-title">
+          <div class="algo-name"><span style="font-family:var(--mono);font-size:10px;font-weight:500;padding:2px 7px;border-radius:3px;background:var(--accent-bg);color:var(--accent);margin-right:8px">Phase 1</span>OUTLINE_SYSTEM_PROMPT</div>
+          <div class="algo-file">prompts.py · build_outline_user_text()</div>
+        </div>
+        <span class="algo-tog">+</span>
+      </div>
+      <div class="algo-body">
+        <div class="algo-inner">
+          <p style="margin-bottom:12px">以下为每次 Phase 1 VLM 调用时随图片一起发送的 JSON 用户消息参数及其来源。</p>
+          <table class="ctable" style="margin-bottom:16px">
+            <thead><tr><th>参数</th><th>类型</th><th>来源</th></tr></thead>
+            <tbody>
+              <tr><td><span class="cvar">file_title</span></td><td><span class="cdef">str</span></td><td>PDF 文件名去扩展名；转换入口从 <code>pdf_path</code> 派生后写入 <code>DocumentContext.file_title</code></td></tr>
+              <tr><td><span class="cvar">page_no</span></td><td><span class="cdef">int</span></td><td>Phase 1 串行循环的当前页码（1-based）</td></tr>
+              <tr><td><span class="cvar">total_pages</span></td><td><span class="cdef">int</span></td><td>PyMuPDF 打开 PDF 时读取，存入 <code>DocumentContext.total_pages</code></td></tr>
+              <tr><td><span class="cvar">previous_page_tail</span></td><td><span class="cdef">str | None</span></td><td>Phase 1 串行维护；上一页 <code>extract_phase1_tail(ps)</code> 返回的结构摘要（末尾标题 + 跨页表格标记）；首页为空串</td></tr>
+              <tr><td><span class="cvar">current_heading_stack</span></td><td><span class="cdef">list</span></td><td>Phase 1 串行维护；每页分析后 <code>update_heading_stack()</code> 更新；首页为 <code>[]</code>；仅传 <code>level</code> + <code>text</code> 两个字段</td></tr>
+            </tbody>
+          </table>
+          <div class="code pmt-code" id="p1PromptCode"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 1.5 -->
+    <div class="algo pmt" style="margin-bottom:8px">
+      <div class="algo-h" onclick="this.parentElement.classList.toggle('open')">
+        <div class="algo-title">
+          <div class="algo-name"><span style="font-family:var(--mono);font-size:10px;font-weight:500;padding:2px 7px;border-radius:3px;background:#fff7ed;color:#b45309;margin-right:8px">Phase 1.5</span>RELEVEL_SYSTEM_PROMPT</div>
+          <div class="algo-file">relevel.py · call_vlm_text()（无图片）</div>
+        </div>
+        <span class="algo-tog">+</span>
+      </div>
+      <div class="algo-body">
+        <div class="algo-inner">
+          <p style="margin-bottom:12px">Phase 1.5 是唯一一次纯文本 LLM 调用（不传图片）。输入为全文标题 JSON 列表，输出为修正后的同形 JSON 数组。以下为用户消息的输入参数说明。</p>
+          <table class="ctable" style="margin-bottom:16px">
+            <thead><tr><th>参数</th><th>类型</th><th>来源</th></tr></thead>
+            <tbody>
+              <tr><td><span class="cvar">file_title</span></td><td><span class="cdef">str</span></td><td><code>DocumentContext.file_title</code></td></tr>
+              <tr><td><span class="cvar">headings</span></td><td><span class="cdef">list[{page, text, level}]</span></td><td>所有非目录页的 <code>headings + appendix_headings</code>，按页码顺序排列</td></tr>
+            </tbody>
+          </table>
+          <table class="ctable" style="margin-bottom:16px">
+            <thead><tr><th>校验规则</th><th>违反时处理</th></tr></thead>
+            <tbody>
+              <tr><td>输出条目数 = 输入条目数</td><td>全部保留原值</td></tr>
+              <tr><td>每条 text 和 page 必须与输入完全一致</td><td>该条保留原值</td></tr>
+              <tr><td>level ∈ [2, 6]</td><td>该条保留原值</td></tr>
+              <tr><td>LLM 调用抛出异常</td><td>静默警告，全部保留原值</td></tr>
+            </tbody>
+          </table>
+          <div class="code pmt-code" id="p15PromptCode"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 2 -->
+    <div class="algo pmt">
+      <div class="algo-h" onclick="this.parentElement.classList.toggle('open')">
+        <div class="algo-title">
+          <div class="algo-name"><span style="font-family:var(--mono);font-size:10px;font-weight:500;padding:2px 7px;border-radius:3px;background:var(--green-bg);color:var(--green);margin-right:8px">Phase 2</span>PAGE_MARKDOWN_SYSTEM_PROMPT</div>
+          <div class="algo-file">prompts.py · build_page_user_text()</div>
+        </div>
+        <span class="algo-tog">+</span>
+      </div>
+      <div class="algo-body">
+        <div class="algo-inner">
+          <p style="margin-bottom:12px">以下为每次 Phase 2 VLM 调用时随图片一起发送的 JSON 用户消息参数及其来源。所有字段由 <code>precompute_page_contexts()</code> 在 Phase 1 结束后统一预算，不在 Phase 2 运行时动态计算。</p>
+          <table class="ctable" style="margin-bottom:16px">
+            <thead><tr><th>参数</th><th>类型</th><th>来源</th></tr></thead>
+            <tbody>
+              <tr><td><span class="cvar">file_title</span></td><td><span class="cdef">str</span></td><td>同 Phase 1，来自 <code>DocumentContext.file_title</code></td></tr>
+              <tr><td><span class="cvar">page_no</span></td><td><span class="cdef">int</span></td><td>当前页码（1-based）</td></tr>
+              <tr><td><span class="cvar">total_pages</span></td><td><span class="cdef">int</span></td><td>同 Phase 1</td></tr>
+              <tr><td><span class="cvar">is_toc_page</span></td><td><span class="cdef">bool</span></td><td>Phase 1 VLM 对本页的判断，来自 <code>PageStructure.is_toc_page</code></td></tr>
+              <tr><td><span class="cvar">known_headings_on_this_page</span></td><td><span class="cdef">list</span></td><td>Phase 1 的 <code>PageStructure.headings + appendix_headings</code>，经 <code>structure_enrich.py</code> 补充后，由 <code>precompute_page_contexts()</code> 按页写入 <code>PageContext</code></td></tr>
+              <tr><td><span class="cvar">current_heading_stack</span></td><td><span class="cdef">list</span></td><td><code>precompute_page_contexts()</code> 重放标题栈算法，快照本页开始时的正确标题路径；传 <code>level + text + type</code></td></tr>
+              <tr><td><span class="cvar">current_appendix</span></td><td><span class="cdef">dict | null</span></td><td><code>precompute_page_contexts()</code> 同步维护；最后一个 <code>appendix_heading</code> 的 <code>{level, text, type}</code>；无附件时为 <code>null</code></td></tr>
+              <tr><td><span class="cvar">page_regions</span></td><td><span class="cdef">list</span></td><td>Phase 1 <code>PageStructure.regions</code>（toc / body / appendix / table / figure）</td></tr>
+              <tr><td><span class="cvar">previous_page_tail</span></td><td><span class="cdef">str</span></td><td><code>precompute_page_contexts()</code> 预算的 Phase 1 结构摘要；<code>repair_tail_continuations()</code> 命中时替换为上页真实 Markdown 末尾 300 字符后重跑</td></tr>
+              <tr><td><span class="cvar">is_flowchart_page</span></td><td><span class="cdef">bool</span></td><td><code>page_has_flowchart(ps, raw_text)</code> 为 true 且非目录页（<code>convert_page.py · build_page_context()</code>）</td></tr>
+              <tr><td><span class="cvar">require_flowchart_structure</span></td><td><span class="cdef">bool</span></td><td><code>is_flowchart_page=true</code> 时自动置 true；Phase 2 校验五节结构完整性，不完整则重跑</td></tr>
+              <tr><td><span class="cvar">require_diagram_descriptions</span></td><td><span class="cdef">bool</span></td><td><code>_is_process_regulation_page()</code> 为 true 且非流程图页；要求输出工艺流程表描述并校验完整性</td></tr>
+              <tr><td><span class="cvar">require_figure_descriptions</span></td><td><span class="cdef">bool</span></td><td><code>_page_has_figure_content()</code> 为 true 且非流程图页、非工艺规程页；要求输出图片内容描述并校验完整性</td></tr>
+            </tbody>
+          </table>
+          <div class="code pmt-code" id="p2PromptCode"></div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</div>
+
+<footer>pdf_vlm_md · 架构文档</footer>
+
+<script>
+const PP = [
+  ['deduplicate_headers_footers',      '统计跨页重复的页眉/页脚行（≥3页出现），从页边界区域删除，保留正文中的相同内容。'],
+  ['normalize_redacted_notsure',       '清理 VLM 输出的 <NOTSURE> 块：脱敏占位符（XXX、黑块等）直接删除，保留真实不确定内容。'],
+  ['normalize_toc_blocks',             '将目录页（Phase 1 标记的 toc_pages）的标题行转为缩进列表，避免与正文标题混淆。'],
+  ['ensure_single_h1',                 '全文只允许一个 H1（文件标题）。重复的同名 H1 删除，不相关的 H1 降为 H2。'],
+  ['promote_plain_numbered_headings',  '将 VLM 漏标的纯文本编号行（「3、…」「3.1 …」「一、…」）提升为对应层级的标题。'],
+  ['fix_numbered_heading_levels',      '根据数字前缀深度强制修正标题层级（1. → H2，1.1 → H3，…）。含中文分号的评估条目跳过。'],
+  ['demote_sequential_list_headings',  '同级、从 1 开始连续递增、数量 ≥ 4 的编号标题降级为有序列表，还原 VLM 误标的要点项。'],
+  ['relevel_headings_under_chinese_sections', '「一、」大节下的阿拉伯数字子节相对降一级，避免与中文大节同层级冲突。'],
+  ['demote_list_items_in_flowchart_sections', '流程图专属五小节内的 ## 1. 2. 3. 编号降回正文，还原列举体。'],
+  ['fix_flowchart_page_titles',        '清理误标的「### 工艺流程图」，改从 **工艺规程** + **流程图** 加粗行合并重建标题。'],
+  ['normalize_appendix_headings',      '附件/附录统一层级：总节 → H2，「附件一」→ H3，子节 → H4。'],
+  ['insert_appendix_parent_nodes',     '若存在「附件一」但无「附件」父节点，自动插入 H2 父节，保证结构树完整。'],
+  ['promote_table_title_headings + demote_figure_formula_headings', '表题提升为与最深正文章节同级；图题、公式编号降为加粗文本（不进入结构树）。'],
+  ['validate_and_annotate_mermaid',    '检查 ```mermaid 块首行是否为合法图类型。无效图前方插入警告注释，图本身保留。'],
+  ['demote_headings_in_html_table_cells', 'HTML &lt;td&gt; 单元格内的 Markdown 标题符号全部剥除，防止表格内容被误认为章节标题。代码块内容豁免。'],
+  ['demote_semicolon_sentence_headings', '以数字开头且内容以「；」结尾的标题行降为普通文本，还原 VLM 误标的评估/检查清单条目（「。」结尾的工序步骤标题保留）。'],
+  ['demote_toc_style_headings',        '连续 ≥ 3 条「## 章节名 ....N」点线目录格式标题整组转为列表项，消除目录页残留误标；短 run（< 3 条）保留，防误杀含省略号的单条章节标题。'],
+  ['normalize_markdown_heading_levels + fix_heading_level_inversions', '全局最终兜底：以 Phase 1 canonical 为锚统一同名标题层级；修正父子关系倒置（中文大节 → 阿拉伯子节 → 多级子节 层级递进约束）。'],
+  ['strip_output_noise + repair_unclosed_html_tables + fix_markdown_table_header', '删除页码行和 HTML 页脚；补全未闭合的 &lt;table&gt; 标签；为无表头行的 Markdown 表格插入空白表头。'],
+  ['inject_missing_headings_from_outline + correct_heading_levels_from_outline + filter_unmatched_p2_headings', 'Phase 1 轮廓兜底三步：① 注入——从 HTML &lt;th&gt; 或纯文本行补写 Phase 1 已知但 Phase 2 漏标的标题；② 校级——逐页比对 Phase 1 层级，修正 Phase 2 的偏差；③ 过滤——将无 Phase 1 依据的孤立标题降为加粗文本。目录页和流程图页豁免。'],
+];
+
+const ALGOS = [
+  {
+    name: '标题栈增量维护 — update_heading_stack',
+    file: 'utils.py',
+    body: `<p>贯穿 Phase 1 和 Phase 2 的核心数据结构。以层级优先队列维护"当前激活标题路径"，确保每页的 VLM 调用都知道自己处于文档的哪一层级下。</p>
+<ul class="steps">
+  <li><span class="sn">01</span>新标题入栈前，弹出所有层级 ≥ 新标题的旧条目（浅层标题覆盖深层）</li>
+  <li><span class="sn">02</span>将新标题 push 进栈</li>
+  <li><span class="sn">03</span>每页 Phase 1 处理后更新全局栈，供下一页 VLM 的 current_heading_stack 参数</li>
+  <li><span class="sn">04</span>precompute_page_contexts 重放此逻辑，为 Phase 2 每页预算正确的前驱栈（避免所有页面共用 Phase 1 末页栈）</li>
+</ul>`
+  },
+  {
+    name: '全局标题层级归一化 — normalize_global_headings',
+    file: 'structure_enrich.py',
+    body: `<p>Phase 1 VLM 对同一标题在不同页可能输出不同层级（如 ## vs ###）。此算法以全文出现的最小层级为权威值，输出后处理可用的 phase1_canonical 字典。</p>
+<ul class="steps">
+  <li><span class="sn">01</span>遍历所有页的 PageStructure，按归一化后的标题文本（去数字、去标点）建立 min-level 映射</li>
+  <li><span class="sn">02</span>第二遍重写：将每个标题层级统一替换为 min-level</li>
+  <li><span class="sn">03</span>输出 phase1_canonical，后处理最终 Pass 用它作兜底锚点</li>
+</ul>
+<p>这确保并行 Phase 2 输出的标题层级在全文一致，即便各页 VLM 调用是独立无序的。</p>`
+  },
+  {
+    name: 'LLM 全局层级修正 — relevel_headings_with_llm',
+    file: 'relevel.py · Phase 1.5',
+    body: `<p>Phase 1 逐页 VLM 提取的固有缺陷：每页只看当前图像，附表/附件常被误赋与父章节相同的 level。此算法在全部 PageStructure 生成后做一次全局 LLM 文本调用（无图片），从整篇视角统一修正。</p>
+<ul class="steps">
+  <li><span class="sn">01</span>收集所有非目录页的 headings + appendix_headings，按页码顺序序列化为 JSON 列表（约 200–300 条）</li>
+  <li><span class="sn">02</span>单次调用 LLM（text-only，call_vlm_text），系统 prompt 给出三条修正规则：同类章节平级、附表归属降一级、正文小节降一级</li>
+  <li><span class="sn">03</span>按索引顺序校验输出：条目数不符 / text 不匹配 / page 不匹配 / level 越界（&lt;2 或 &gt;6）→ 保留原值</li>
+  <li><span class="sn">04</span>将通过校验的 level 直接写回 Heading 对象（就地修改，影响后续 precompute_page_contexts 和 phase1_canonical）</li>
+  <li><span class="sn">05</span>任何异常（API 错误、解析失败）均静默警告、保留原始层级，整体流程不中断</li>
+</ul>
+<p>通过 <code>ENABLE_RELEVEL=false</code> 可完全跳过；<code>QWEN_RELEVEL_MODEL</code> 可指定专用模型（默认与 OUTLINE 共用）。</p>`
+  },
+  {
+    name: '跨页续接修复 — repair_tail_continuations',
+    file: 'convert.py',
+    body: `<p>Phase 2 并行时每页用 Phase 1 结构摘要作为前驱尾段（非真实文本），可能导致跨页表格断裂或语句误续。此算法在 Phase 2 全部完成后检测并修复。</p>
+<ul class="steps">
+  <li><span class="sn">01</span>信号 A：上页末行以 | 开头，当前页首行也是表格行但第二行不是分隔行 → 跨页表格断裂</li>
+  <li><span class="sn">02</span>信号 B：当前页首行以小写字母或中文逗号开头 → 语句在页边界被截断</li>
+  <li><span class="sn">03</span>对命中的页：提取上一页真实 Markdown 末尾 300 字符，用 dataclasses.replace 创建副本后重跑 VLM</li>
+  <li><span class="sn">04</span>重跑同样并行，失败时保留原始结果</li>
+</ul>`
+  },
+  {
+    name: '连续序列标题降级 — demote_sequential_list_headings',
+    file: 'postprocess.py · Pass 07',
+    body: `<p>VLM 常将「1. 步骤A  2. 步骤B  3. 步骤C …」这类有序列表标记为 Markdown 标题。此算法识别并还原为 <code>1. 内容</code> 格式。</p>
+<ul class="steps">
+  <li><span class="sn">01</span>扫描同级标题行，找到序号从 1 开始连续递增的起点</li>
+  <li><span class="sn">02</span>相邻序号之间允许夹杂正文续行（跳过），遇到同级或更高级其他标题则终止</li>
+  <li><span class="sn">03</span>连续数量 ≥ 4 才降级，避免 2–3 条的真实章节误判</li>
+</ul>`
+  },
+  {
+    name: 'TOC 点线目录检测 — demote_toc_style_headings',
+    file: 'postprocess.py · Pass 15',
+    body: `<p>目录页条目形如「## 第一章 概述 ........ 3」，VLM 会错误地标记为正文标题。算法通过点线模式识别并转为列表项。</p>
+<ul class="steps">
+  <li><span class="sn">01</span>正则匹配：标题行末尾含 4 个以上点/省略号 + 页码数字</li>
+  <li><span class="sn">02</span>相邻条目间距 ≤ 3 行（覆盖空行），合并为连续 run</li>
+  <li><span class="sn">03</span>run 长度 ≥ 3 才整组降级，短 run 保留，避免误杀含省略号的单条章节标题</li>
+</ul>`
+  },
+];
+
+const MODELS = [
+  [
+    ['pdf_path',                'str',                   'PDF 文件路径'],
+    ['file_title',              'str',                   '文档标题，用作 H1'],
+    ['total_pages',             'int',                   '总页数'],
+    ['toc_pages',               'list[int]',             'Phase 1 标记的目录页页码列表'],
+    ['page_structures',         'dict[int, PageStructure]','每页的结构元数据映射'],
+    ['current_heading_stack',   'list[Heading]',         '当前激活标题路径（实时维护）'],
+    ['current_appendix',        'Heading | None',        '当前激活的附件/附录标题'],
+    ['previous_page_tail',        'str | None',              'Phase 1 串行维护的上一页结构摘要尾段，由 precompute_page_contexts 写入 PageContext.previous_page_tail；首页为 null'],
+    ['process_sections',        'list[Heading]',         '从目录解析出的工艺文件章节列表'],
+  ],
+  [
+    ['file_title',              'str',            '文档标题'],
+    ['page_no',                 'int',            '当前页码（1-based）'],
+    ['total_pages',             'int',            '文档总页数'],
+    ['is_toc_page',             'bool',           '是否为目录页'],
+    ['known_headings_on_this_page','list[Heading]','Phase 1 已知的本页标题'],
+    ['current_heading_stack',   'list[Heading]',  '本页开始时的标题路径（预算）'],
+    ['current_appendix',          'Heading | None',          '当前激活的附件/附录标题，由 precompute_page_contexts 同步维护；无附件时为 null'],
+    ['page_regions',              'list[PageRegion]',        'Phase 1 PageStructure.regions 传递过来的页面区域列表（toc/body/appendix/table/figure）'],
+    ['previous_page_tail',      'str | None',     '上一页末尾摘要或真实尾段文本'],
+    ['is_flowchart_page',       'bool',           '是否为流程图页，触发专属五小节模板'],
+    ['require_flowchart_structure','bool',                   'is_flowchart_page=true 时自动置 true；Phase 2 校验五节结构完整性，不完整则重跑'],
+    ['require_diagram_descriptions','bool',                  '_is_process_regulation_page() 为 true 且非流程图页；要求输出工艺流程表描述并校验完整性'],
+    ['require_figure_descriptions','bool',                   '_page_has_figure_content() 为 true 且非流程图页、非工艺规程页；要求输出图片内容描述并校验完整性'],
+  ],
+  [
+    ['page_no',                 'int',            '页码'],
+    ['is_toc_page',             'bool',           '目录页标记'],
+    ['is_appendix_page',        'bool',           '附件页标记'],
+    ['is_table_continuation',   'bool',           '跨页表格延续页'],
+    ['headings',                'list[Heading]',  '正文标题列表'],
+    ['appendix_headings',       'list[Heading]',  '附件标题列表'],
+    ['table_titles',            'list[dict]',     '本页表格标题（text + bbox）'],
+    ['regions',                   'list[PageRegion]',        '页面区域列表（toc/body/appendix/table/figure），VLM 识别并用于 precompute_page_contexts 构建 PageContext.page_regions'],
+    ['structure_confidence',    'float',          '结构识别置信度 0.0–1.0'],
+    ['extraction_method',       '"vlm"|"pymupdf"','使用的提取方法'],
+    ['notes',                     'str',                     'VLM 对本页的自由文本注释（调试用），不参与后续处理逻辑'],
+  ],
+  [
+    ['text',               'str',              '标题文本'],
+    ['level',              'int',              'Markdown 层级 1–6'],
+    ['number',             'str | None',       '标题编号（如 "3.1"）'],
+    ['type',               'HeadingType',      'body_heading / appendix_heading / …'],
+    ['confidence',         'float',            'VLM 自报置信度'],
+    ['visual_prominence',  '"high"|"normal"',  'normal + 低置信度 → 过滤'],
+  ],
+];
+
+// arch passes
+const archPasses = document.getElementById('archPasses');
+PP.forEach((_, i) => {
+  const s = document.createElement('span');
+  s.className = 'fc-pass';
+  s.textContent = 'P' + String(i+1).padStart(2,'0');
+  archPasses.appendChild(s);
+});
+
+// render PP
+const ppGrid = document.getElementById('ppGrid');
+PP.forEach(([name, desc], i) => {
+  const d = document.createElement('div');
+  d.className = 'pp';
+  d.innerHTML = `<div class="pp-top"><span class="pp-name">${name}</span><span class="pp-n">P${String(i+1).padStart(2,'0')}</span></div><div class="pp-desc">${desc}</div>`;
+  d.addEventListener('click', () => {
+    const was = d.classList.contains('open');
+    document.querySelectorAll('.pp').forEach(x => x.classList.remove('open'));
+    if (!was) d.classList.add('open');
+  });
+  ppGrid.appendChild(d);
+});
+
+// render algos
+const algoList = document.getElementById('algoList');
+ALGOS.forEach(a => {
+  const d = document.createElement('div');
+  d.className = 'algo';
+  d.innerHTML = `
+    <div class="algo-h">
+      <div class="algo-title">
+        <div class="algo-name">${a.name}</div>
+        <div class="algo-file">${a.file}</div>
+      </div>
+      <span class="algo-tog">+</span>
+    </div>
+    <div class="algo-body"><div class="algo-inner">${a.body}</div></div>`;
+  d.querySelector('.algo-h').addEventListener('click', () => d.classList.toggle('open'));
+  algoList.appendChild(d);
+});
+
+// render models
+MODELS.forEach((fields, i) => {
+  const el = document.getElementById('m' + i);
+  fields.forEach(([n, t, d]) => {
+    const div = document.createElement('div');
+    div.className = 'field';
+    div.innerHTML = `<div class="field-n">${n}</div><div class="field-t">${t}</div><div class="field-d">${d}</div>`;
+    el.appendChild(div);
+  });
+});
+
+// tabs
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.mbody').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById(t.dataset.t).classList.add('active');
+  });
+});
+
+// progress + active nav
+const bar = document.getElementById('bar');
+const navAs = document.querySelectorAll('.nav-links a');
+const secs = [...document.querySelectorAll('section,[id=overview]')];
+
+window.addEventListener('scroll', () => {
+  bar.style.width = (window.scrollY / (document.documentElement.scrollHeight - innerHeight) * 100) + '%';
+  let cur = '';
+  secs.forEach(s => { if (window.scrollY >= s.offsetTop - 70) cur = s.id; });
+  navAs.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + cur));
+}, { passive: true });
+
+navAs.forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+
+// prompt text injection
+const P15_PROMPT = `# Role
+你是文档标题层级梳理工具。
+
+# Input
+用户发送一个 JSON 对象，包含：
+- file_title: 文档标题
+- headings: 按页码顺序排列的所有标题，每条含 page（页码）、text（标题文字）、level（当前层级）
+
+# Goal
+检查并修正标题的 level 字段，使文档层次结构合理一致。
+
+# Rules（严格执行）
+
+## 输出格式约束
+1. 只输出 JSON 数组，格式与输入 headings 完全一致（每项含 page、text、level）。
+2. 禁止用代码块包裹；直接输出裸数组。
+3. 输出条目数量必须与输入完全一致，且顺序不变。
+4. 禁止修改任何条目的 text 或 page 字段。
+5. level 取值范围 2–6，禁止使用 level=1（H1 由系统保留给文档总标题）。
+
+## 层级修正规则
+
+### 同类工序章节平级
+同类工序规程标题（如「G01 xxx工序工艺规程」「G02 xxx工序工艺规程」等编号序列，
+或「第一章」「第二章」等章节序列）在文档中必然是对等关系，必须赋予相同的 level。
+
+### 附表/附件归属
+- 「附表 N」「附件 N」属于其所在工序章节的直接子项。
+- 所属章节：从该附表/附件往前查找最近的工序章节标题（如 G01、G02 等）。
+- 附表/附件的 level = 所属工序章节 level + 1。
+- 若附表/附件当前 level 与所属章节相同（即误置为平级），必须降一级。
+
+### 正文小节归属
+- 形如「本工序要点：」「注意事项：」「一、xxx」「1. xxx」等正文小节，
+  若被标记为标题，其 level 必须大于所属工序章节的 level。
+- 与工序章节同 level 的正文小节视为误赋，level += 1。
+
+## 保守原则
+- 若某条标题层级已经合理（如 level=3 的附表位于 level=2 的章节之下），不做修改。
+- 只改有问题的条目，其余照原样输出。`;
+
+const P1_PROMPT = `# Role
+你是文档结构识别工具。你的任务不是完整转写页面内容，而是识别该页在整篇 PDF 中的结构信息，包括目录页、章节标题、附件标题、附录标题、附表标题、跨页表格状态等。
+
+# Input
+用户会发送一张图片。这张图片是一份 PDF 文档的其中一页截图。
+同时会提供：file_title、page_no、total_pages、previous_page_tail（可为空）、current_heading_stack（文档迄今为止的标题层级栈，可为空列表）
+
+# Goal
+只输出 JSON，不输出任何解释性文字。
+
+# Rules
+- 不要完整转写页面正文。
+- 只识别结构信息。
+- Phase 1 Outline JSON 不使用 <NOTSURE> 标签；不确定性只通过 confidence 和 notes 表达。
+- 目录页只标记为 is_toc_page=true，不要把目录项作为真实标题。
+- 【headings 定义】headings 的含义是「当前页画面中可见的标题」，而非「此前文档中未出现过的新标题」。即使某个标题已出现在 current_heading_stack 中，只要它在当前页图像里可见，就必须写入本页的 headings——Phase 2 依赖本页 headings 决定是否输出该 Markdown 标题行，「续页」不是跳过标题的理由，每个可见标题都要写。
+- 【重要】区分「章节标题」与「正文编号要点」，必须同时满足以下三条才能写入 headings：
+  ① 视觉字体明显大于周围正文，或明显加粗（与正文同字号且不加粗的编号行 → 不是标题）；
+  ② 在段落间有视觉分隔（留白 / 线条），视觉上独立突出；
+  ③ 承担文档结构划分作用（读者可凭它跳转定位），而非列举某节内的操作步骤/要求/要点。
+  → 不满足任意一条，即使有数字编号，也不写入 headings（Phase 2 按正文有序列表处理）。
+- 对每条写入 headings 的条目，同时输出 visual_prominence：字体/加粗明显突出 → "high"；与正文相近仅凭编号格式判断 → "normal"
+- 标题层级赋值（基于视觉层次判断，不固定编号格式→level 的映射）：
+  ① level=2 为全文最高层章节标题，禁止使用 level=1（H1 由系统保留给文档总标题）
+  ② 若 current_heading_stack 非空：参考栈中已有标题的 level；本页视觉同深度的内容沿用栈中对应 level，子级在父级 level 基础上 +1
+  ③ 若 current_heading_stack 为空（首页或首次出现标题）：将本页视觉最高层标题定为 level=2，每深一层 +1
+  ④ 同一页内多个标题的 level 必须体现真实视觉从属关系，视觉上同层的标题必须赋相同 level
+  ⑤ 编号格式（1. / 1.1 / 一、等）仅作辅助参考，以字体大小、加粗程度、缩进层次为最终依据；level 最深不超过 6
+- 工艺规程页眉标题（如 G01 配料工序工艺规程、G02 瓷浆辊轧工艺规程）：写入 headings，type=body_heading，level 根据 current_heading_stack 和视觉层次自行判断
+- 普通表格标题（表1-1、表2-3 等）写入 table_titles；附表N 写入 table_titles 或 appendix_headings
+- 附表 level = 当前页最深层章节标题 level（与父章节同级，如父级 ### 则附表也为 ###）；普通表题 level = 附表 level + 1，无附表时 = 章节 level + 1
+- 图题（图2-3）、公式编号（公式（1））、附图不识别为章节标题，不要写入 headings
+- 整页或主体为「工艺流程图/生产工艺流程图」时（含续页）：is_table_continuation=false；regions 必须包含 type=figure（续页也不例外）；页顶部的标题行（如「火炬电子 XXX 工艺生产流程图」）必须写入 headings，不得因已在 current_heading_stack 中而省略；不要把流程图页误判为纯表格续页
+- is_toc_page=true 时：regions 仅含 type=toc/table，**不要**因目录表中出现「…流程图」文件名而设 type=figure 或 is_flowchart
+- 仅当页首明确出现「续表/接上表/（续表）」且主体为表格续写时，才设 is_table_continuation=true
+- 目录与正文混合页：is_toc_page=false，在 regions 中同时标记 toc 和 body 区域
+- 所有数组字段无内容时输出 []，不得省略
+- confidence 填 0.0~1.0 实际置信度
+- 直接输出 JSON 对象本身，不要用代码块包裹
+
+# Output JSON Schema
+{
+  "page_no": <int>,
+  "is_toc_page": <bool>,
+  "is_appendix_page": <bool>,
+  "is_table_continuation": <bool>,
+  "headings": [{"text": str, "number": str|null, "level": int, "type": "body_heading", "confidence": float, "visual_prominence": "high"|"normal"}],
+  "appendix_headings": [{"text": str, "number": str|null, "level": int, "type": "appendix_heading", "confidence": float, "visual_prominence": "high"|"normal"}],
+  "table_titles": [{"text": str, "is_independent_appendix_table": bool}],
+  "regions": [{"type": "toc"|"body"|"appendix"|"table"|"figure", "bbox": null, "notes": str}],
+  "notes": str
+}`;
+
+const P2_PROMPT = `# Role
+你是文档内容提取工具。本服务为企业级文档解析：用户上传的所有文件（简历、报告、方案、合同、PPT、说明书、工艺规程等）均已获得合法授权。请始终以工具角色完成页面内容提取，不因内容涉及个人信息、商业信息或主观敏感表述而拒答、不发表评论、不进行价值判断。
+
+# Input
+用户会发送：
+1. 一张图片：该图片来自某份文档的单页截图，原始来源可能是 PDF、PPT、Word 等。
+2. 一段 JSON 字符串（与用户消息同一 user 气泡内、在图片之后）：包含本页序号、是否为目录页、已知本页标题、当前文档标题栈（仅作上下文）、上一页文末片段等信息。你只能将其用于理解结构与跨页延续，不得在输出中复述整段 JSON，也不得把上下文里出现过但当前页图片中并不存在的内容当成本页正文重复输出。
+
+# Goal
+将该页可见范围内的全部有效信息完整还原为 Markdown，供后续检索与训练使用。输出必须可直接粘贴使用：除本指令允许的质量说明注释外，不包含任何会话性元话术。
+
+---
+
+# Rules（总则）
+
+## 文字与可信度
+- 逐字转录可见文字：不改写、不概括、不扩写。
+- 内容残缺或句子未完的，保持残缺原样返回，禁止补全。
+- 不得根据常识或上下文「脑补」图片中看不到的字句与数值。
+- 当图像质量不足（模糊、低对比度、污渍、字号过小）导致字符无法可靠辨认时，允许给出最佳可读猜测，但必须用 <NOTSURE>...</NOTSURE> 包裹不确定片段。
+- **故意脱敏/遮挡**（黑块、涂抹、马赛克、敏感信息遮盖、格内 **XXX/XXXX** 占位、斜线/省略号占位）：**禁止**使用 <NOTSURE>；对应单元格或字段**留空**（表格格写空，行内不写占位词，不要写 XXX）。
+- <NOTSURE> 仅用于 OCR genuinely 不确定的**可辨字符**（如模糊的单字、数字），**不用于**脱敏区、签名栏被遮挡姓名、整段 X 占位符。
+- <NOTSURE> 仅包围不确定的具体字词或短语；必须严格使用大写标签 <NOTSURE> 与 </NOTSURE>，禁止大小写混用或自创变体（如 </NOTSUR>）。
+- OCR 不确定示例：产值<NOTSURE>增长</NOTSURE>了约三成
+- 若整页可读性极差，可在本页 Markdown 正文最开头增加一行：\`<!-- 本页图片质量极差，内容识别可信度低 -->\`。
+
+## 需忽略的视觉元素（低优先级噪声）
+以下内容通常忽略：背景装饰、模板装饰、页眉、页脚、页码、纯粹水印。
+但若页眉页脚或水印中含有可追溯来源的有效信息（例如「数据来源：」「来源：」「某某研究院」「某某期刊」等品牌、机构或文献指向），视为有效正文信息，必须保留。
+以下内容始终忽略：Copyright / © / 版权声明等版权声明行（但若其中夹带与数据来源相关的可追溯机构名称，可按来源信息保留可追溯部分，不扩写）。
+
+## JSON 上下文的使用约束（必须与图片一致）
+- known_headings_on_this_page：若某条标题文字在当前页画面中可见，**必须**用 Markdown 标题输出（level=2→##，level=3→###，level=4→####），**禁止**仅用 **加粗** 代替章节标题。
+- known_headings_on_this_page：若条目给出 level=1，一律视为正文二级标题，即 Markdown 中为 ##。
+- **【重要】任何内容是否输出为 Markdown 标题，均以 known_headings_on_this_page 为准**：**仅 known_headings_on_this_page 中列出的条目才能使用 Markdown \`#\` 标题格式**（\`##\`/\`###\`/\`####\` 等）。不论某内容视觉上是否突出（加粗、独立成行、有编号等），只要未出现在 known_headings_on_this_page 中，一律**禁止**输出为 Markdown 标题——编号行（如「1.」「2.」「3.」「1、」）按有序列表 \`1. …\` 输出，其他文本按普通段落处理。
+- current_heading_stack：仅供理解隶属关系；栈中标题若在当前页画面中没有出现，不得抄写或复述到本页输出。
+- previous_page_tail：仅用于判断是否跨页延续（如表格续页、未完句子）；禁止把上一页正文整段抄写进本页。
+
+---
+
+# Heading Rules
+- PDF 文件名是唯一 H1，由程序统一添加；你不要输出 \`# file_title\`。
+- **【层级强约束】known_headings_on_this_page 中每条标题的 \`level\` 字段即为该标题在 Markdown 输出中的**精确**层级，禁止自行调整（level=3→\`###\`，level=4→\`####\`，level=5→\`#####\`，level=6→\`######\`）。不得因"视觉上看起来更浅"而降级，也不得升级。此规则适用于所有页面（包括普通正文页、流程图页、附录页）。**
+- **【流程图/架构图页标题】**：若 known_headings_on_this_page 中有标题且该标题在页面图像里可见，**严格按照 known_headings_on_this_page 中给定的 level 输出对应 Markdown 标题**（level=2→\`##\`，level=3→\`###\`，level=4→\`####\`），放在全文最前。**禁止擅自降级**（如 level=2 输出成 \`###\`）。
+- 标题文本逐字保留，只在前面添加 Markdown 标题符号，不改写。
+- 不要把普通表格编号、图编号、公式编号识别为章节标题（表1-1、图2-3、公式（1））。
+
+# TOC Rules
+- is_toc_page=true 时，目录内容保留为普通列表。
+- 目录标题用 **目录**，不用 ## 目录。
+- 目录项不得转换为真实 Markdown 标题。
+
+# Appendix Rules
+- 附件/附录总标题：## 附件 / ## 附录
+- 具体附件标题 附件1：xxx：### 附件1：xxx
+- 附件内部小节 附件1.1：xxx：#### 附件1.1：xxx
+- 普通表格标题不识别为章节标题（表1-1 xxx -> 加粗文本）
+- 跨页续表的 续表/接上表/xxx（续）只作普通说明保留，不重复创建附件标题。
+
+# Table Rules
+
+## 判断输出格式（严格执行）
+- **简单表格**（所有单元格均独立，无跨列跨行合并）→ 使用 Markdown \`|\` 语法
+- **复杂表格**（存在任意合并单元格，即原 PDF 中某格视觉上横跨多列或多行）→ **必须** 使用 HTML \`<table>\` 语法，**严禁** 用 Markdown \`|\` 输出（含合并单元格的 Markdown 表格会造成列数不一致，直接破坏渲染效果）
+
+## Markdown 表格规范（简单表格）
+- 每行必须以 \`|\` 开头、以 \`|\` 结尾
+- 表头行之后必须紧跟分隔行，列数必须与表头完全一致（如3列表头对应 \`| :--- | :--- | :--- |\`）
+- 所有数据行的列数必须与表头列数完全相同
+- 若无可见表头行，使用空白表头（\`| | | |\`，列数与数据行一致），再接分隔行
+
+## HTML 表格规范（复杂表格）
+- 使用标准 HTML 标签：\`<table>\`, \`<thead>\`, \`<tbody>\`, \`<tr>\`, \`<th>\`, \`<td>\`
+- 合并列用 \`colspan="N"\`，合并行用 \`rowspan="N"\`
+- 若有表头行，用 \`<thead><tr><th>…</th></tr></thead>\`；数据行放入 \`<tbody>\`；若无表头行，只用 \`<tbody>\`
+- 被合并掉的单元格**不输出**（不写占位 \`<td>\` 或 \`<th>\`）
+- 不添加任何 \`style\`、\`class\`、\`id\` 等属性，保持简洁
+
+## 通用规则
+- 表头可见时必须保留；跨页续表缺少表头时不自行补头
+- 表格标题（表x-x、附表N）使用加粗文本，不作为 Markdown 标题
+
+# Chart Rules
+输出格式：
+**图表说明：[图表标题]**
+- 图表类型：xxx
+- 横轴含义：xxx
+- 纵轴含义：xxx
+- 图例：xxx
+- 关键数据点：xxx
+- 趋势结论：xxx
+- 数据来源：xxx
+
+# Image Rules
+**图片内容描述**
+图片展示了……（描述可见主体、位置关系、文字标识、特征）
+
+# Flowchart / Architecture Rules
+
+**① 本页真实标题与正文（最先输出）**
+- 页眉/规程标题、known_headings_on_this_page 中且画面可见的标题：**严格按照 known_headings_on_this_page 中给定的 level 输出对应 Markdown 标题**（level=2→\`##\`，level=3→\`###\`，level=4→\`####\`），放在全文最前。禁止擅自降级（如 level=2 输出成 \`###\`）。
+- 若页面顶部有页眉（如规程编号、文件名），照常转录为普通正文或小标题，不要遗漏。
+
+**② 流程图结构描述（必须包含以下五节，按序输出）**
+
+### 流程图/架构图信息
+- 图名称：xxx
+- 图类型：xxx（工艺流程图 / 系统架构图 / 数据流程图 / 组织架构图 / 其他）
+- 主要目标：xxx
+
+### 节点列表
+| 节点ID | 节点名称 | 节点类型 | 说明 |
+|--------|----------|----------|------|
+| N01    | xxx      | 开始/结束/工序/判断/存储/外部 | xxx |
+
+### 关系列表
+- 节点A → 节点B：关系类型（顺序/条件/并行/回流）+ 含义说明
+
+### 流程链路总结
+用 2–5 句话描述整体流程逻辑、主路径和关键分支。
+
+### Mermaid 图
+\`\`\`mermaid
+flowchart TD
+  A[节点A] --> B[节点B]
+\`\`\`
+
+# Uncertainty Rules
+- <NOTSURE> 仅用于 Phase 2 Markdown 正文内容转写，不用于结构判断。
+- 必须严格大写 <NOTSURE> 和 </NOTSURE>，不得输出变体。
+- OCR 不确定示例：产值<NOTSURE>增长</NOTSURE>了约三成
+- 整页质量极差时：在页面开头插入 <!-- 本页图片质量极差，内容识别可信度低 -->
+
+# Examples
+Example 1（图文混排）
+输入：一页带柱状图的报告 输出：完整的该页文字 + 对图表的描述（类型/标题/轴/关键值/趋势）
+
+Example 2（纯图表）
+输入：只有一张饼图的页面 输出：对该饼图的描述，无任何前后缀
+
+Example 3（含合并单元格的表格）
+输入：PDF 中有一个2列签字栏，第一行整行合并为一个格显示"拟制/日期"，第二行和第三行各有两个独立格
+输出：
+<table>
+  <tbody>
+    <tr>
+      <td colspan="2">拟制/日期</td>
+    </tr>
+    <tr>
+      <td>张三 2024.01.01</td>
+      <td>审核/日期</td>
+    </tr>
+    <tr>
+      <td>李四 2024.01.01</td>
+      <td>批准/日期</td>
+    </tr>
+  </tbody>
+</table>
+
+Example 5（❌ 禁止产生：含合并单元格但使用了 Markdown，导致列数不一致）
+输入：PDF 中一张4列签字栏，第一列"拟制/日期"行与"底图总号/G240586"合并
+错误输出（用了 Markdown，最后一行7列，表头4列 → 渲染错误，列数不一致）：
+| 拟制/日期 | | 谢某某 2024.01.11 | |
+| :--- | :--- | :--- | :--- |
+| **底图总号** | **G240586** | 审核/日期 | 陈某某 |
+| **庄某某** | **更改标记** | **数量** | **更改单号** | **签名** | **批准** | **倪某某** |
+正确做法：含合并单元格 → 必须使用 HTML <table>，参见 Example 3
+
+Example 4（残缺内容，禁止补全）
+输入： """ 经研究，发现一天喝可乐喝太多，会导致糖分超标。 因此我们要 """ 输出： """ 经研究，发现一天喝可乐喝太多，会导致糖分超标。 因此我们要 """`;
+
+document.getElementById('p1PromptCode').textContent = P1_PROMPT;
+document.getElementById('p15PromptCode').textContent = P15_PROMPT;
+document.getElementById('p2PromptCode').textContent = P2_PROMPT;
+</script>
+</body>
+</html>

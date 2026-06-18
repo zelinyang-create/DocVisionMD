@@ -43,6 +43,52 @@ def _encode_image(image_path: Path) -> str:
         return base64.b64encode(f.read()).decode("utf-8")
 
 
+def call_llm(
+    system_prompt: str,
+    user_text: str,
+    model: str | None = None,
+    max_retries: int = 3,
+    timeout: float = 120.0,
+    max_tokens: int | None = None,
+) -> str:
+    """Call Qwen LLM with text-only prompt (no image). Returns model text output."""
+    config = get_config()
+    client = _get_client()
+    model = model or config.model
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_text},
+    ]
+
+    request_kwargs = _generation_kwargs(config)
+    if max_tokens is not None:
+        request_kwargs["max_tokens"] = max_tokens
+    if not config.enable_thinking:
+        request_kwargs["extra_body"] = {"enable_thinking": False}
+
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                timeout=timeout,
+                **request_kwargs,
+            )
+            return response.choices[0].message.content or ""
+        except Exception as exc:
+            if attempt == max_retries - 1:
+                raise
+            wait = 2 ** attempt
+            logger.warning(
+                "LLM text call failed (attempt %d/%d): %s — retrying in %ds",
+                attempt + 1, max_retries, exc, wait,
+            )
+            time.sleep(wait)
+
+    return ""  # unreachable
+
+
 def call_vlm(
     image_path: Path,
     system_prompt: str,

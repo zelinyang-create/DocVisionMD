@@ -47,5 +47,18 @@ def update_heading_stack(stack: list[Heading], new_headings: list[Heading]) -> l
 def normalize_heading_text(text: str) -> str:
     text = text.strip()
     text = text.replace('：', ':').replace('（', '(').replace('）', ')')
+    # 全角数字 → 半角
+    text = text.translate(str.maketrans('０１２３４５６７８９', '0123456789'))
+    # 全角字母 → 半角
+    text = text.translate(str.maketrans(
+        'ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ',
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+    ))
+    # 全角句点 → 半角
+    text = text.replace('．', '.')
+    # 间隔号去除
+    text = text.replace('·', '')
+    # en dash / em dash 统一为 -
+    text = text.replace('–', '-').replace('—', '-')
     text = re.sub(r'\s+', ' ', text)
     return text

@@ -14,6 +14,7 @@ from .postprocess import postprocess_markdown
 from .validators import validate_markdown, repair_markdown
 from .utils import get_file_title, extract_tail_text, update_heading_stack
 from .structure_enrich import normalize_global_headings
+from .relevel import relevel_headings_with_llm
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ def precompute_page_contexts(
         # 更新栈与附件状态：只用 Phase 1 标题，与顺序循环逻辑保持一致
         all_headings = ps.headings + ps.appendix_headings
         stack = update_heading_stack(stack, all_headings)
-        has_new_body = any(h.level <= 2 and h.type == 'body_heading' for h in all_headings)
+        has_new_body = any(h.type == 'body_heading' for h in all_headings)
         if has_new_body:
             current_appendix = None
         elif ps.appendix_headings:
@@ -185,7 +186,7 @@ def convert_pdf_to_markdown(
         )
     file_title = get_file_title(pdf_path)
     project_root = Path(pdf_path).parent
-    debug_root = project_root / '_debug'
+    debug_root = project_root / '_debug' / Path(pdf_path).stem
 
     page_images = render_pdf_to_images(
         pdf_path=pdf_path,
@@ -204,6 +205,9 @@ def convert_pdf_to_markdown(
 
     logger.info('Phase 1: normalizing heading levels globally...')
     normalize_global_headings(document_context)
+
+    logger.info('Phase 1.5: releveling heading hierarchy with LLM...')
+    relevel_headings_with_llm(document_context)
 
     if debug:
         outline_path = debug_root / 'outline.json'
