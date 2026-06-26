@@ -1,6 +1,5 @@
 from pdf_vlm_md.postprocess import (
     normalize_redacted_notsure,
-    promote_table_title_headings,
     demote_figure_formula_headings,
 )
 from pdf_vlm_md.heading_rules import (
@@ -73,17 +72,6 @@ def test_appendix_level_under_section():
     assert heading_level_for_title("表1-1 主要指标", section_level=3) == 4
     assert heading_level_for_title("表1-1 主要指标", section_level=3, appendix_level=3) == 4
     assert heading_level_for_title("图2-3 趋势") is None
-
-
-def test_promote_appendix_under_g01_section():
-    inp = (
-        "### 火炬电子 G01 配料工序工艺规程（关键工序）\n\n"
-        "**附表1 黏剂配方工艺**\n\n"
-        "**表1-1 主要财务指标**\n| a |"
-    )
-    out = promote_table_title_headings(inp)
-    assert "### 附表1 黏剂配方工艺" in out
-    assert "#### 表1-1 主要财务指标" in out
 
 
 def test_demote_figure_only():

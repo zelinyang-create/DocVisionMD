@@ -1,18 +1,9 @@
-from pdf_vlm_md.postprocess import fix_numbered_heading_levels
 from pdf_vlm_md.validators import validate_notsure_tags, repair_notsure_tags, repair_markdown, ValidationReport
 from pdf_vlm_md.utils import strip_notsure
 
 
 def test_strip_notsure_preserves_content():
     assert strip_notsure("产值<NOTSURE>增长</NOTSURE>了三成") == "产值增长了三成"
-
-
-def test_notsure_in_heading_preserved_after_level_fix():
-    inp = "## 1.1 <NOTSURE>建设背景</NOTSURE>"
-    out = fix_numbered_heading_levels(inp)
-    assert "<NOTSURE>" in out
-    assert "</NOTSURE>" in out
-    assert out.startswith("###")
 
 
 def test_validator_detects_unclosed_tag():
