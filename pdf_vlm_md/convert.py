@@ -15,6 +15,7 @@ from .validators import validate_markdown, repair_markdown
 from .utils import get_file_title, extract_tail_text, update_heading_stack
 from .structure_enrich import normalize_global_headings
 from .relevel import relevel_headings_with_llm
+from .phase25 import repair_format_with_llm
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +264,12 @@ def convert_pdf_to_markdown(
             (pages_debug_dir / f'page_{page_no:03d}.md').write_text(md, encoding='utf-8')
 
     raw = '\n\n'.join(page_markdowns)
+
+    logger.info('Phase 2.5: repairing cross-page table splits with LLM...')
+    try:
+        raw = repair_format_with_llm(raw)
+    except Exception as exc:
+        logger.warning('Phase 2.5 failed, skipping: %s', exc)
 
     if debug:
         pp_dir = debug_root / 'postprocess'
