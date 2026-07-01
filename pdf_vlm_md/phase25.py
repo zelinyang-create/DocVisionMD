@@ -47,7 +47,7 @@ def _is_table_row(line: str) -> bool:
     return line.strip().startswith('|')
 
 
-_SEP_CELL_RE = re.compile(r'^:?-{3,}:?$')
+_SEP_CELL_RE = re.compile(r'^(?::?-{3,}:?|:-{1,}:?)$')
 
 
 def _is_separator_row(line: str) -> bool:
@@ -181,6 +181,57 @@ def _call_repair(reference_lines: list[str], fragment_lines: list[str]) -> str:
     )
 
 
+def _empty_header_lines(col_count: int) -> list[str]:
+    header = '| ' + ' | '.join([''] * col_count) + ' |'
+    separator = '| ' + ' | '.join([':---'] * col_count) + ' |'
+    return [header, separator]
+
+
+def _headerless_block_repairable(block: list[str]) -> bool:
+    if not block or any(_is_separator_row(line) for line in block):
+        return False
+    counts = [len(_row_cells(line)) for line in block]
+    if len(set(counts)) != 1:
+        return False
+    col_count = counts[0]
+    if col_count < 2:
+        return False
+    # Single short pipe rows are often prose with vertical bars. Wide rows are
+    # usually extracted tables and need a header to render as Markdown.
+    return len(block) >= 2 or col_count >= 4
+
+
+def _repair_headerless_markdown_tables(body: str) -> tuple[str, int]:
+    lines = body.split('\n')
+    out: list[str] = []
+    repaired = 0
+    i = 0
+    in_code = False
+
+    while i < len(lines):
+        line = lines[i]
+        if line.strip().startswith('```'):
+            in_code = not in_code
+            out.append(line)
+            i += 1
+            continue
+        if in_code or not _is_table_row(line):
+            out.append(line)
+            i += 1
+            continue
+
+        start = i
+        while i < len(lines) and _is_table_row(lines[i]):
+            i += 1
+        block = lines[start:i]
+        if _headerless_block_repairable(block):
+            out.extend(_empty_header_lines(len(_row_cells(block[0]))))
+            repaired += 1
+        out.extend(block)
+
+    return '\n'.join(out), repaired
+
+
 def _rewrap(original: str, new_body: str) -> str:
     """用 new_body 替换 original 的正文，保留其首尾换行（页间距）。"""
     lead = original[: len(original) - len(original.lstrip('\n'))]
@@ -200,7 +251,10 @@ def repair_format_with_llm(raw: str) -> str:
     parts = _MARKER_SPLIT_RE.split(raw)
     # parts = [prefix, marker, content, marker, content, ...]
     content_indices = list(range(2, len(parts), 2))  # index of each content chunk
-    if len(content_indices) < 2:
+    if not content_indices:
+        raw, headerless_repaired = _repair_headerless_markdown_tables(raw)
+        if headerless_repaired:
+            logger.info('Phase 2.5: added %d empty Markdown table headers', headerless_repaired)
         return raw
 
     # 当某页正文整段是续表、被并入上一页后清空时，记录重定向：
@@ -261,4 +315,10 @@ def repair_format_with_llm(raw: str) -> str:
 
     if repaired:
         logger.info('Phase 2.5: 修复了 %d 处跨页续表', repaired)
+    headerless_repaired = 0
+    for idx in content_indices:
+        parts[idx], n = _repair_headerless_markdown_tables(parts[idx])
+        headerless_repaired += n
+    if headerless_repaired:
+        logger.info('Phase 2.5: added %d empty Markdown table headers', headerless_repaired)
     return ''.join(parts)

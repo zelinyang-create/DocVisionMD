@@ -5,6 +5,7 @@ from pdf_vlm_md import phase25
 from pdf_vlm_md.phase25 import (
     _col_count,
     _faithful_rows,
+    _repair_headerless_markdown_tables,
     _is_separator_row,
     _leading_table_block,
     _trailing_table_lines,
@@ -92,6 +93,7 @@ def test_faithful_false_when_cells_reordered():
 
 def test_separator_row_excludes_single_dash_data_row():
     assert _is_separator_row('| :--- | :--- | :--- |') is True
+    assert _is_separator_row('| :- | :- |') is True
     assert _is_separator_row('| --- | --- |') is True
     assert _is_separator_row('| - | - |') is False  # 单破折号是占位数据，不是分隔行
     assert _is_separator_row('| 1 | 2 |') is False
@@ -207,3 +209,60 @@ def test_repair_no_boundary_leaves_text_unchanged():
         out = repair_format_with_llm(raw)
     assert out == raw
     assert not m.called
+
+
+def test_adds_empty_header_to_headerless_markdown_table():
+    body = (
+        "前文\n\n"
+        "| 2 | 外观 | 端电极表面缺陷 | 产品报废 |\n"
+        "| | | 电极延伸 | 产品报废 |\n"
+        "\n后文"
+    )
+
+    out, repaired = _repair_headerless_markdown_tables(body)
+
+    assert repaired == 1
+    assert (
+        "|  |  |  |  |\n"
+        "| :--- | :--- | :--- | :--- |\n"
+        "| 2 | 外观 | 端电极表面缺陷 | 产品报废 |"
+    ) in out
+
+
+def test_headerless_repair_leaves_existing_headered_table_unchanged():
+    body = (
+        "| 序号 | 项目 | 结果 |\n"
+        "| :--- | :--- | :--- |\n"
+        "| 1 | a | ok |"
+    )
+
+    out, repaired = _repair_headerless_markdown_tables(body)
+
+    assert repaired == 0
+    assert out == body
+
+
+def test_headerless_repair_skips_ragged_or_code_block_tables():
+    body = (
+        "```md\n"
+        "| a | b |\n"
+        "| c | d |\n"
+        "```\n\n"
+        "| 1 | 2 | 3 |\n"
+        "| 4 | 5 |"
+    )
+
+    out, repaired = _repair_headerless_markdown_tables(body)
+
+    assert repaired == 0
+    assert out == body
+
+
+def test_repair_format_adds_empty_header_without_page_markers():
+    raw = "| 2 | 外观 | 端电极表面缺陷 | 产品报废 |\n| | | 电极延伸 | 产品报废 |"
+    cfg = type('C', (), {'enable_phase25': True})()
+
+    with patch.object(phase25, 'get_config', return_value=cfg):
+        out = repair_format_with_llm(raw)
+
+    assert out.startswith("|  |  |  |  |\n| :--- | :--- | :--- | :--- |")
