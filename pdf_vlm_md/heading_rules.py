@@ -59,7 +59,10 @@ REDACTION_NOTSURE_BLOCK_RE = re.compile(
     r')\s*</NOTSURE>',
     re.IGNORECASE | re.UNICODE,
 )
-MALFORMED_NOTSURE_CLOSE_RE = re.compile(r'</NOTSUR>', re.IGNORECASE)
+MALFORMED_NOTSURE_CLOSE_RE = re.compile(
+    r'</\s*N\s*O\s*T\s*S\s*U\s*R\s*(?:E\s*)?>',
+    re.IGNORECASE,
+)
 
 SIGNATURE_FIELD_CONTEXT_RE = re.compile(
     r'签名|拟制|审核|批准|填表|编制|会签|文控|质量|标准化|设计/日期|签名/日期|批准/日期',

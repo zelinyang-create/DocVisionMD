@@ -6,7 +6,7 @@ Always respond in Chinese (中文). Never switch to Korean or any other language
 
 ## Project Overview
 
-PDF-to-Markdown converter using a Vision Language Model (VLM). Each PDF page is rendered as a PNG image and sent to the VLM, which outputs structured Markdown. Two sequential phases: Phase 1 (serial structure extraction) → Phase 2 (parallel per-page conversion) → postprocessing.
+PDF-to-Markdown converter using a Vision Language Model (VLM). Each PDF page is rendered as a PNG image and sent to the VLM, which outputs structured Markdown. Processing flow: Phase 1 (serial structure extraction) → Phase 1.5 heading releveling → Phase 2 (parallel per-page conversion) → postprocessing.
 
 Entry point: `python -m pdf_vlm_md convert <input.pdf> -o <output.md>`
 
@@ -50,13 +50,14 @@ Tests do not make live VLM API calls.
 
 ## Table Handling (Critical)
 
-Two-path rule enforced in both the prompt and postprocessing:
-- **Simple tables** (no merged cells) → Markdown `|` syntax
-- **Complex tables** (any `colspan`/`rowspan`) → HTML `<table>` with explicit attributes
+Document tables are emitted as HTML:
+- All document tables → HTML `<table>` syntax
+- Merged cells use explicit `colspan` / `rowspan` attributes
+- Markdown pipe tables are reserved for generated helper structures such as flowchart node lists
 
 Postprocessing repairs:
 - `repair_unclosed_html_tables()` — closes `<table>` tags missing `</table>` within each page block
-- `fix_markdown_table_header()` — prepends an empty header row when a Markdown table starts with a separator row
+- `deduplicate_headers_footers()` — keeps table structure lines while removing repeated headers/footers
 
 ## Page Boundary Markers
 

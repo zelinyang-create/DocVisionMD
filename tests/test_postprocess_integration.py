@@ -36,6 +36,84 @@ def test_pipeline_no_duplicate_title():
     assert "## Test Doc" not in out
 
 
+def test_pipeline_keeps_residual_document_pipe_tables():
+    raw = (
+        "<!-- page: 1 -->\n"
+        "|  |  | 产品名称 | Test Product | 编号 | ABC |\n"
+        "| :--- | :--- | :--- | :--- | :--- | :--- |\n"
+        "|  |  | 产品图号 | T-001 |  |  |\n"
+    )
+
+    out = postprocess_markdown(raw, "Test Doc", _ctx(total_pages=1))
+
+    assert "|  |  | 产品名称 | Test Product | 编号 | ABC |" in out
+    assert "| :--- | :--- | :--- | :--- | :--- | :--- |" in out
+    assert "|  |  | 产品图号 | T-001 |  |  |" in out
+
+
+def test_pipeline_keeps_flowchart_node_pipe_tables():
+    raw = (
+        "<!-- page: 1 -->\n"
+        "| 节点ID | 节点名称 | 节点类型 | 说明 |\n"
+        "| :--- | :--- | :--- | :--- |\n"
+        "| N01 | 开始 | 开始 | 流程起点 |\n"
+    )
+
+    out = postprocess_markdown(raw, "Test Doc", _ctx(total_pages=1))
+
+    assert "| 节点ID | 节点名称 | 节点类型 | 说明 |" in out
+    assert "| :--- | :--- | :--- | :--- |" in out
+    assert "| N01 | 开始 | 开始 | 流程起点 |" in out
+
+
+def test_pipeline_closes_unclosed_code_fence_before_next_page_table():
+    raw = (
+        "<!-- page: 1 -->\n"
+        "```mermaid\n"
+        "flowchart TD\n"
+        "A --> B\n"
+        "<!-- page: 2 -->\n"
+        "|  |  | 产品名称 | Test Product | 编号 | ABC |\n"
+        "| :--- | :--- | :--- | :--- | :--- | :--- |\n"
+        "|  |  | 产品图号 | T-001 |  |  |\n"
+    )
+
+    out = postprocess_markdown(raw, "Test Doc", _ctx(total_pages=2))
+
+    assert out.count("```") % 2 == 0
+    assert "|  |  | 产品名称 | Test Product | 编号 | ABC |" in out
+    assert "| :--- | :--- | :--- | :--- | :--- | :--- |" in out
+
+
+def test_pipeline_keeps_html_table_tags_at_page_boundaries():
+    raw = (
+        "<!-- page: 1 -->\n"
+        "<table>\n"
+        "  <tbody>\n"
+        "    <tr><td>1</td><td>a</td></tr>\n"
+        "  </tbody>\n"
+        "</table>\n"
+        "<!-- page: 2 -->\n"
+        "<table>\n"
+        "  <tbody>\n"
+        "    <tr><td>2</td><td>b</td></tr>\n"
+        "  </tbody>\n"
+        "</table>\n"
+        "<!-- page: 3 -->\n"
+        "<table>\n"
+        "  <tbody>\n"
+        "    <tr><td>3</td><td>c</td></tr>\n"
+        "  </tbody>\n"
+        "</table>\n"
+    )
+
+    out = postprocess_markdown(raw, "Test Doc", _ctx(total_pages=3))
+
+    assert out.count("<table>") == 3
+    assert out.count("</table>") == 3
+    assert "<tr><td>2</td><td>b</td></tr>" in out
+
+
 def test_pipeline_promotes_appendix_and_clears_redaction():
     """Phase 1 标了的附表 → 提升为该页级别标题；图题不在 Phase 1 → 降为加粗。"""
     from pdf_vlm_md.models import PageStructure, Heading

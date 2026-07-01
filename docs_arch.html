@@ -676,12 +676,12 @@ python <span class="k">-m</span> pdf_vlm_md convert input.pdf <span class="k">-o
     <div class="table-note">
       <div class="table-note-row">
         <div class="tnc">
-          <div class="tnc-label">简单表格 → Markdown |</div>
-          <p>无合并单元格，VLM 直接输出 <code>|...|</code> 语法</p>
+          <div class="tnc-label">文档表格 → HTML &lt;table&gt;</div>
+          <p>PDF 原文中的简单表格、复杂表格、跨页续表统一输出 HTML 表格</p>
         </div>
         <div class="tnc">
-          <div class="tnc-label">复杂表格 → HTML &lt;table&gt;</div>
-          <p>含 colspan/rowspan，输出带显式属性的 HTML 表格</p>
+          <div class="tnc-label">流程图辅助结构</div>
+          <p>Mermaid 图和节点列表等生成型辅助结构不属于 PDF 原文文档表格</p>
         </div>
       </div>
     </div>
@@ -841,7 +841,7 @@ const PP = [
   ['demote_semicolon_sentence_headings', '以数字开头且内容以「；」结尾的标题行降为普通文本，还原 VLM 误标的评估/检查清单条目（「。」结尾的工序步骤标题保留）。'],
   ['demote_toc_style_headings',        '连续 ≥ 3 条「## 章节名 ....N」点线目录格式标题整组转为列表项，消除目录页残留误标；短 run（< 3 条）保留，防误杀含省略号的单条章节标题。'],
   ['normalize_markdown_heading_levels + fix_heading_level_inversions', '全局最终兜底：以 Phase 1 canonical 为锚统一同名标题层级；修正父子关系倒置（中文大节 → 阿拉伯子节 → 多级子节 层级递进约束）。'],
-  ['strip_output_noise + repair_unclosed_html_tables + fix_markdown_table_header', '删除页码行和 HTML 页脚；补全未闭合的 &lt;table&gt; 标签；为无表头行的 Markdown 表格插入空白表头。'],
+  ['strip_output_noise + repair_unclosed_html_tables', '删除页码行和 HTML 页脚；补全未闭合的 &lt;table&gt; 标签。'],
   ['inject_missing_headings_from_outline + correct_heading_levels_from_outline + filter_unmatched_p2_headings', 'Phase 1 轮廓兜底三步：① 注入——从 HTML &lt;th&gt; 或纯文本行补写 Phase 1 已知但 Phase 2 漏标的标题；② 校级——逐页比对 Phase 1 层级，修正 Phase 2 的偏差；③ 过滤——将无 Phase 1 依据的孤立标题降为加粗文本。目录页和流程图页豁免。'],
 ];
 
@@ -1202,16 +1202,11 @@ const P2_PROMPT = `# Role
 # Table Rules
 
 ## 判断输出格式（严格执行）
-- **简单表格**（所有单元格均独立，无跨列跨行合并）→ 使用 Markdown \`|\` 语法
-- **复杂表格**（存在任意合并单元格，即原 PDF 中某格视觉上横跨多列或多行）→ **必须** 使用 HTML \`<table>\` 语法，**严禁** 用 Markdown \`|\` 输出（含合并单元格的 Markdown 表格会造成列数不一致，直接破坏渲染效果）
+- **PDF 原文中的文档表格**一律使用 HTML \`<table>\` 语法输出，包括简单表格、复杂表格、跨页续表、无表头表格。
+- **严禁**使用 Markdown \`|\` 表格语法输出 PDF 原文中的文档表格。
+- 流程图补充说明中的 Mermaid 图、节点列表等生成型辅助结构不属于 PDF 原文文档表格，可按 Flowchart / Architecture Rules 的格式输出。
 
-## Markdown 表格规范（简单表格）
-- 每行必须以 \`|\` 开头、以 \`|\` 结尾
-- 表头行之后必须紧跟分隔行，列数必须与表头完全一致（如3列表头对应 \`| :--- | :--- | :--- |\`）
-- 所有数据行的列数必须与表头列数完全相同
-- 若无可见表头行，使用空白表头（\`| | | |\`，列数与数据行一致），再接分隔行
-
-## HTML 表格规范（复杂表格）
+## HTML 表格规范
 - 使用标准 HTML 标签：\`<table>\`, \`<thead>\`, \`<tbody>\`, \`<tr>\`, \`<th>\`, \`<td>\`
 - 合并列用 \`colspan="N"\`，合并行用 \`rowspan="N"\`
 - 若有表头行，用 \`<thead><tr><th>…</th></tr></thead>\`；数据行放入 \`<tbody>\`；若无表头行，只用 \`<tbody>\`

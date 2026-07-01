@@ -98,3 +98,20 @@ def test_appendix_table_level_helper():
     assert appendix_table_level(2) == 2
     assert appendix_table_level(3) == 3
     assert appendix_table_level(6) == 6
+
+
+def test_malformed_notsure_close_with_internal_space_is_stripped():
+    inp = "value: <NOTSURE>...</NOTSUR E>s\n<table>\n</table>\nnext line"
+    out = normalize_redacted_notsure(inp)
+    assert "NOTSUR" not in out
+    assert "<NOTSURE>" not in out
+    assert "<table>" in out
+    assert "next line" in out
+
+
+def test_unclosed_notsure_does_not_delete_following_lines():
+    inp = "value: <NOTSURE>unclear\n<table>\n</table>\nnext line"
+    out = normalize_redacted_notsure(inp)
+    assert "<table>" in out
+    assert "</table>" in out
+    assert "next line" in out

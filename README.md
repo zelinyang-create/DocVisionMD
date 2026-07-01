@@ -17,7 +17,7 @@ Each page image is sent to the VLM with a lightweight prompt that asks only for 
 Each page is converted independently and concurrently. The VLM receives the page image plus the Phase 1 context for that page (known headings, heading stack, previous page tail) and outputs the full Markdown for that page. Pages are then concatenated in order.
 
 **Postprocessing**
-A deterministic rule-based pipeline cleans up the joined Markdown: heading level normalization, TOC block formatting, header/footer deduplication across pages, appendix heading promotion, table title promotion, figure caption demotion, flowchart section handling, and table repair (closing unclosed HTML tags, fixing tables with a missing header row).
+A deterministic rule-based pipeline cleans up the joined Markdown: heading level normalization, TOC block formatting, header/footer deduplication across pages, appendix heading promotion, table title promotion, figure caption demotion, flowchart section handling, and HTML table repair.
 
 ```
 PDF
@@ -42,12 +42,13 @@ output.md
 
 ## Table Handling
 
-Tables are a first-class concern. The VLM is instructed to apply a two-path rule:
+Tables are a first-class concern. The VLM is instructed to emit document tables as HTML `<table>` blocks:
 
-- **Simple tables** (no merged cells) → standard Markdown `|` pipe syntax
-- **Complex tables** (any `colspan` or `rowspan`) → HTML `<table>` with explicit `colspan="N"` / `rowspan="N"` attributes
+- All document tables use HTML `<table>` syntax.
+- Merged cells use explicit `colspan="N"` / `rowspan="N"` attributes.
+- Markdown pipe tables are reserved for non-document structures such as generated flowchart node lists.
 
-The postprocessor repairs common VLM slip-ups: unclosed `<table>` tags that would corrupt surrounding content, and Markdown tables where the separator row (`| :--- |`) was emitted as the first row with no header above it.
+The postprocessor repairs common VLM slip-ups: unclosed `<table>` tags that would corrupt surrounding content, and page-boundary header/footer cleanup that might otherwise remove repeated table structure tags.
 
 ---
 
@@ -148,7 +149,7 @@ pdf_vlm_md/
 tests/
 ├── conftest.py
 ├── test_postprocess_integration.py
-├── test_postprocess_table_repair.py   # HTML close repair + MD header fix
+├── test_postprocess_table_repair.py   # HTML table close repair
 ├── test_prompt_table_rules.py         # Prompt content assertions
 ├── test_heading_levels.py
 ├── test_toc_normalization.py

@@ -44,6 +44,8 @@ credentials.*
 # -------------------------
 .claude/settings.local.json
 **/.claude/settings.local.json
+.claude/worktrees/
+**/.claude/worktrees/
 .cursor/
 
 # -------------------------
